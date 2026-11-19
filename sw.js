@@ -3,9 +3,9 @@
   pour que l'app marche même sans réseau au club.
   Si tu modifies l'app, change le numéro de version ci-dessous.
 */
-const CACHE = 'submission-v3';
+const CACHE = 'submission-v4';
 const FICHIERS = [
-  './', 'index.html', 'style.css', 'app.js', 'missions.json', 'manifest.json',
+  './', 'index.html', 'style.css', 'pictos.js', 'app.js', 'missions.json', 'manifest.json',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
   'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png'
 ];
