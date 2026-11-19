@@ -1,0 +1,310 @@
+/* ===== Couleurs du thème : les ceintures de JJB ===== */
+:root {
+  --fond: #f6f1e6;          /* crème, comme un kimono / la ceinture blanche */
+  --surface: #fffdf8;
+  --surface-2: #ece5d6;
+  --bord: #d9cfbb;
+  --texte: #141414;         /* ceinture noire */
+  --discret: #57524a;
+  --bleu: #1d4ed8;          /* ceinture bleue : couleur principale */
+  --bleu-fonce: #1e3a8a;
+  --bleu-clair: #e3eafb;
+  --violet: #6d28d9;        /* ceinture violette */
+  --violet-clair: #efe7fd;
+  --marron: #7a4519;        /* ceinture marron */
+  --marron-clair: #f4e9dd;
+  --noir: #141414;
+  --rayon: 18px;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  background: var(--fond);
+  color: var(--texte);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 18px;
+  line-height: 1.4;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button, input { font: inherit; color: inherit; }
+button { touch-action: manipulation; user-select: none; -webkit-user-select: none; cursor: pointer; }
+
+#app {
+  max-width: 520px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: calc(16px + env(safe-area-inset-top)) 16px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.chargement { text-align: center; margin-top: 40vh; color: var(--discret); }
+.accent-txt { color: var(--bleu); }
+
+/* ===== La barrette noire à galons blancs (bout de ceinture) ===== */
+.barrette {
+  display: inline-flex; align-items: stretch; gap: 3px;
+  background: var(--noir); padding: 3px 5px; border-radius: 2px;
+  height: 18px; vertical-align: middle;
+}
+.barrette i { display: block; width: 4px; background: #fff; }
+.barrette i.eteint { background: #4a4a4a; }
+
+/* Bande décorative : blanche → bleue → violette → marron → noire */
+.deco-ceintures {
+  display: flex; height: 12px; margin: 14px auto 0; width: 220px;
+  border-radius: 3px; overflow: hidden; border: 1.5px solid var(--noir);
+}
+.deco-ceintures span { flex: 1; }
+.deco-ceintures span:nth-child(1) { background: #fff; }
+.deco-ceintures span:nth-child(2) { background: var(--bleu); }
+.deco-ceintures span:nth-child(3) { background: var(--violet); }
+.deco-ceintures span:nth-child(4) { background: var(--marron); }
+.deco-ceintures span:nth-child(5) { background: var(--noir); }
+
+/* ===== Accueil ===== */
+.logo { text-align: center; padding: 8px 0 4px; }
+.logo img { width: 88px; height: 88px; }
+.logo h1 { margin: 6px 0 0; font-size: 2.6rem; letter-spacing: -0.03em; font-weight: 900; }
+.logo h1 span { color: var(--bleu); }
+.accroche { margin: 4px 0 0; color: var(--discret); }
+
+.bloc { margin-top: 22px; }
+.bloc h2 {
+  margin: 0 0 8px; font-size: 0.85rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--marron);
+}
+
+.grille-2, .grille-3 { display: grid; gap: 10px; }
+.grille-2 { grid-template-columns: 1fr 1fr; }
+.grille-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+/* Bouton à choisir (sélectionné ou non) */
+.choix {
+  min-height: 64px;
+  padding: 12px;
+  border-radius: var(--rayon);
+  border: 3px solid var(--bord);
+  background: var(--surface);
+  font-size: 1.15rem;
+  font-weight: 800;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  text-align: center;
+}
+.choix small { font-weight: 500; font-size: 0.85rem; color: var(--discret); }
+.choix[aria-pressed="true"] { border-color: var(--bleu); background: var(--bleu-clair); color: var(--bleu-fonce); }
+.choix[aria-pressed="true"] small { color: var(--bleu-fonce); }
+.choix:disabled { opacity: 0.4; }
+
+/* Petit morceau de ceinture (choix du niveau) */
+.ceinture {
+  display: flex; justify-content: flex-end; width: 52px; height: 14px;
+  border-radius: 2px; border: 1.5px solid var(--noir);
+}
+.ceinture::after { content: ""; width: 14px; background: var(--noir); }
+.ceinture.blanche { background: #fff; }
+.ceinture.bleue { background: var(--bleu); }
+.ceinture.violette { background: var(--violet); }
+
+.compteur { display: flex; align-items: center; justify-content: center; gap: 24px; margin-bottom: 10px; }
+.compteur span { font-size: 2.2rem; font-weight: 900; min-width: 2ch; text-align: center; }
+.rond {
+  width: 64px; height: 64px; border-radius: 50%;
+  border: 3px solid var(--bord); background: var(--surface);
+  font-size: 2rem; font-weight: 700; line-height: 1;
+}
+.rond:disabled { opacity: 0.3; }
+
+.noms { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.champ {
+  width: 100%; min-height: 56px; padding: 0 14px;
+  border-radius: 14px; border: 2px solid var(--bord); background: var(--surface);
+  font-size: 1.05rem;
+}
+.champ::placeholder { color: #8a8378; }
+.champ:focus { outline: none; border-color: var(--bleu); }
+
+/* ===== Boutons d'action ===== */
+.actions {
+  position: sticky; bottom: 0;
+  margin-top: auto;
+  padding: 20px 0 calc(16px + env(safe-area-inset-bottom));
+  background: linear-gradient(to bottom, transparent, var(--fond) 22px);
+  display: grid; gap: 10px;
+}
+.btn {
+  width: 100%; min-height: 72px; padding: 12px 16px;
+  border-radius: var(--rayon); border: 3px solid var(--noir);
+  font-size: 1.4rem; font-weight: 800;
+  background: var(--surface);
+}
+.btn-primaire { background: var(--bleu); border-color: var(--bleu); color: #fff; box-shadow: 0 6px 0 var(--bleu-fonce); }
+.btn-primaire:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--bleu-fonce); }
+.btn:disabled { opacity: 0.35; }
+.btn-lien { background: transparent; border: 0; min-height: 56px; font-size: 1.1rem; color: var(--bleu-fonce); text-decoration: underline; }
+
+.quitter {
+  align-self: flex-start;
+  min-height: 48px; padding: 0 16px;
+  border-radius: 999px; border: 2px solid var(--bord); background: var(--surface);
+  color: var(--discret); font-weight: 700; font-size: 1rem;
+}
+
+/* ===== Écrans de jeu ===== */
+.etape {
+  margin: 16px 0 0; text-align: center; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.1em; color: var(--marron); font-size: 0.9rem;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+}
+.etape::before {
+  content: ""; width: 26px; height: 12px; background: var(--noir);
+  background-image: repeating-linear-gradient(90deg, transparent 0 5px, #fff 5px 8px);
+  background-clip: content-box; padding: 0 3px; border: 2px solid var(--noir); border-radius: 2px;
+}
+.titre { margin: 4px 0 12px; text-align: center; font-size: 1.9rem; line-height: 1.15; font-weight: 900; }
+.discret { color: var(--discret); }
+.centre-txt { text-align: center; }
+
+.centre { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 16px 0; }
+.icone-grande { font-size: 4.5rem; line-height: 1; }
+.petit { margin: 16px 0 0; color: var(--discret); font-size: 1.1rem; }
+.nom-joueur { margin: 4px 0 8px; font-size: 3rem; font-weight: 900; word-break: break-word; color: var(--bleu); }
+
+.carte {
+  background: var(--surface); border: 2px solid var(--bord);
+  border-radius: var(--rayon); padding: 16px;
+}
+.securite { max-width: 440px; text-align: left; font-size: 1.15rem; margin-top: 16px; border: 3px solid var(--bleu); }
+.securite p { margin: 0 0 10px; }
+.securite p:last-child { margin: 0; }
+
+.liste { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.nom-mission { font-size: 1.35rem; font-weight: 800; line-height: 1.2; }
+
+/* Étiquettes : niveau (couleur de ceinture) + difficulté (galons = points) */
+.etiquettes { display: flex; flex-wrap: wrap; gap: 6px; }
+.etiquette {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px; border-radius: 999px; border: 2px solid var(--noir);
+  font-size: 0.85rem; font-weight: 800; line-height: 1.3;
+}
+.etiquette.blanche { background: #fff; color: var(--noir); }
+.etiquette.bleue { background: var(--bleu); border-color: var(--bleu); color: #fff; }
+.etiquette.violette { background: var(--violet); border-color: var(--violet); color: #fff; }
+.etiquette.difficulte { background: var(--marron-clair); border-color: var(--marron); color: var(--marron); }
+.etiquette .barrette { height: 14px; padding: 2px 4px; gap: 2px; }
+.etiquette .barrette i { width: 3px; }
+
+/* Fiche d'une mission (écran secret) */
+.fiche { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; }
+.fiche .nom-mission { font-size: 1.6rem; }
+.illustration { width: 150px; height: 150px; border-radius: 28px; overflow: hidden; flex: none; }
+.fiche.compacte .illustration { width: 104px; height: 104px; border-radius: 22px; }
+.fiche.compacte .nom-mission { font-size: 1.35rem; }
+.illustration svg, .illustration img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.categorie { font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--violet); }
+.etapes {
+  list-style: none; counter-reset: etape; margin: 4px 0 0; padding: 0;
+  display: grid; gap: 8px; text-align: left; width: 100%;
+}
+.etapes li {
+  counter-increment: etape; display: flex; gap: 12px; align-items: flex-start;
+  background: var(--fond); border-radius: 12px; padding: 10px 12px; font-size: 1.05rem;
+}
+.etapes li::before {
+  content: counter(etape); flex: none;
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--bleu); color: #fff; font-weight: 900; font-size: 0.95rem;
+}
+
+/* Mission à cocher / deviner */
+.choix.ligne { flex-direction: row; justify-content: flex-start; text-align: left; gap: 14px; min-height: 72px; }
+.choix.ligne .texte { display: flex; flex-direction: column; gap: 6px; flex: 1; color: var(--texte); }
+.case {
+  flex: none; width: 36px; height: 36px; border-radius: 10px;
+  border: 3px solid var(--bord); background: #fff; display: grid; place-items: center; font-size: 1.3rem;
+}
+.choix[aria-pressed="true"] .case { background: var(--bleu); border-color: var(--bleu); }
+.choix[aria-pressed="true"] .case::after { content: "✓"; color: #fff; font-weight: 900; }
+
+.compte-choix { text-align: center; font-weight: 800; font-size: 1.1rem; margin: 4px 0 12px; color: var(--bleu-fonce); }
+
+/* ===== Chrono : un grand temps + une ceinture qui se remplit ===== */
+.temps {
+  text-align: center; margin: 18px 0 12px;
+  font-size: clamp(4.5rem, 26vw, 7rem); font-weight: 900; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.chrono-ceinture { display: flex; align-items: stretch; height: 40px; margin: 0 0 18px; }
+.chrono-ceinture .corps {
+  flex: 1; background: #fff; border: 3px solid var(--noir); border-right: 0;
+  border-radius: 6px 0 0 6px; overflow: hidden;
+}
+.chrono-ceinture .rempli { height: 100%; width: 0; background: var(--bleu); transition: width 0.25s linear; }
+.chrono-ceinture .barrette { height: auto; padding: 5px 8px; gap: 6px; border-radius: 0 6px 6px 0; }
+.chrono-ceinture .barrette i { width: 8px; }
+.chrono.bientot .temps { color: var(--marron); }
+.chrono.bientot .rempli { background: var(--marron); }
+.chrono.fini .temps { font-size: clamp(3rem, 16vw, 4.5rem); color: var(--violet); animation: clignote 0.6s steps(2) infinite; }
+.chrono.fini .rempli { background: var(--violet); }
+@keyframes clignote { 50% { opacity: 0.3; } }
+.legende-chrono { text-align: center; color: var(--discret); font-size: 0.9rem; margin: -10px 0 14px; }
+
+.paires { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 8px; }
+.paires li {
+  background: var(--surface); border: 2px solid var(--bord); border-radius: 14px; padding: 12px; text-align: center;
+  font-size: 1.2rem; font-weight: 800;
+}
+.paires li span { color: var(--bleu); font-weight: 700; padding: 0 6px; }
+
+/* ===== Résultats ===== */
+.banniere {
+  text-align: center; padding: 18px; border-radius: var(--rayon);
+  background: var(--violet); color: #fff;
+  font-size: 1.5rem; font-weight: 900; margin: 8px 0 14px;
+  box-shadow: 0 6px 0 #4c1d95;
+}
+.score-joueur { margin-bottom: 12px; }
+.score-entete { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.score-entete h3 { margin: 0; font-size: 1.4rem; word-break: break-word; }
+.score-entete .pts { font-size: 2.2rem; font-weight: 900; color: var(--marron); white-space: nowrap; }
+.resultat-ligne { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--bord); font-size: 1rem; }
+.resultat-ligne .icone { flex: none; width: 26px; text-align: center; font-weight: 900; }
+.resultat-ligne .icone.oui { color: var(--bleu); }
+.resultat-ligne .icone.non { color: var(--discret); }
+.resultat-ligne .detail { display: block; color: var(--discret); font-size: 0.9rem; }
+.sous-titre { margin: 10px 0 2px; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--marron); }
+
+.match { text-align: center; color: var(--discret); margin: 0 0 8px; }
+.match strong { color: var(--texte); }
+
+.barre-vote { display: grid; gap: 4px; padding: 10px 0; border-top: 1px solid var(--bord); }
+.barre-vote .haut { display: flex; justify-content: space-between; font-weight: 800; }
+.barre-vote .jauge { height: 12px; border-radius: 6px; background: var(--surface-2); overflow: hidden; }
+.barre-vote .jauge div { height: 100%; background: var(--marron); }
+.barre-vote.intrus .jauge div { background: var(--violet); }
+.barre-vote .detail { color: var(--discret); font-size: 0.9rem; }
+
+/* ===== Règles ===== */
+.regles h3 { margin: 18px 0 6px; color: var(--bleu); }
+.regles p, .regles li { color: #2b2925; }
+.regles ul { padding-left: 20px; margin: 6px 0; }
+.fiche .etiquettes { justify-content: center; }
+.illustration > span { display: block; width: 100%; height: 100%; }
+
+/* Écran de mission secrète : tout doit tenir sans faire défiler */
+.petit-titre { font-size: 1.5rem; margin: 2px 0 8px; }
+.fiche { gap: 8px; padding: 14px; }
+.illustration { width: 120px; height: 120px; border-radius: 24px; }
+.fiche .nom-mission { font-size: 1.45rem; }
+.fiche.compacte .illustration { width: 88px; height: 88px; border-radius: 18px; }
+.etapes { gap: 6px; }
+.etapes li { padding: 8px 10px; font-size: 1rem; line-height: 1.3; }
+/* Le bouton suit le contenu au lieu de rester collé en bas (rien n'est caché) */
+.actions.apres-contenu { position: static; background: none; padding-top: 14px; }

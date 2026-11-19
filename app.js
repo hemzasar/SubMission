@@ -1,0 +1,937 @@
+/*
+  SubMission — le jeu de missions secrètes pour le sparring de JJB.
+
+  Comment ce fichier est organisé :
+    1. Réglages et constantes (points, niveaux…)
+    2. Petits outils (mélanger, tirer au hasard…)
+    3. Son, vibration et écran toujours allumé
+    4. Écrans communs (accueil, sécurité, passer le téléphone, chrono, règles)
+    5. Mode Duel
+    6. Mode Undercover
+    7. Démarrage de l'app
+
+  Chaque "écran" est une fonction qui remplace le contenu de la page.
+*/
+'use strict';
+
+/* =========================================================
+   1. Réglages et constantes
+   ========================================================= */
+
+// Points gagnés selon la difficulté d'une mission
+const POINTS = { facile: 1, moyen: 2, difficile: 3, soumission: 5 };
+const LIBELLE_DIFFICULTE = { facile: 'Facile', moyen: 'Moyen', difficile: 'Difficile', soumission: 'Soumission' };
+
+// Niveaux, du plus bas au plus haut. Un niveau voit aussi les missions des niveaux en dessous.
+const NIVEAUX = ['blanche', 'bleue', 'violette'];
+const LIBELLE_NIVEAU = { blanche: 'Blanche', bleue: 'Bleue', violette: 'Violette +' };
+
+const DUREES_ROUND = [3, 5, 6];        // en minutes
+const NB_PROPOSITIONS_DEVINETTE = 8;   // nombre de missions proposées pour deviner
+const JOUEURS_MIN_UNDERCOVER = 3;
+const JOUEURS_MAX_UNDERCOVER = 10;
+
+// Réglages choisis sur l'accueil (gardés en mémoire sur le téléphone)
+const reglages = Object.assign(
+  { mode: 'duel', nbJoueurs: 4, niveau: 'blanche', tenue: 'gi', nbMissions: 2, duree: 5, noms: [] },
+  lireReglages()
+);
+
+let MISSIONS = [];   // rempli depuis missions.json au démarrage
+const app = document.getElementById('app');
+
+function lireReglages() {
+  try { return JSON.parse(localStorage.getItem('submission-reglages')) || {}; } catch { return {}; }
+}
+function sauverReglages() {
+  try { localStorage.setItem('submission-reglages', JSON.stringify(reglages)); } catch { /* pas grave */ }
+}
+
+/* =========================================================
+   2. Petits outils
+   ========================================================= */
+
+// Renvoie une copie du tableau dans un ordre aléatoire
+function melanger(tableau) {
+  const t = tableau.slice();
+  for (let i = t.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [t[i], t[j]] = [t[j], t[i]];
+  }
+  return t;
+}
+const auHasard = (t) => t[Math.floor(Math.random() * t.length)];
+
+// Protège le texte tapé par les joueurs avant de l'afficher
+function esc(texte) {
+  return String(texte).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+const pts = (m) => POINTS[m.difficulte];
+const plurielPts = (n) => `${n} pt${Math.abs(n) > 1 ? 's' : ''}`;
+// Barrette noire avec des galons blancs, comme au bout d'une ceinture.
+// "allumes" = combien de galons sont blancs (les autres sont gris).
+const barrette = (n, allumes = n) => `<span class="barrette" aria-hidden="true">${
+  Array.from({ length: n }, (_, i) => `<i${i < allumes ? '' : ' class="eteint"'}></i>`).join('')}</span>`;
+
+// Étiquettes d'une mission : son niveau (couleur de ceinture) et sa difficulté (1 galon = 1 point)
+const LIBELLE_CEINTURE = { blanche: 'Blanche', bleue: 'Bleue', violette: 'Violette +' };
+const badge = (m) => `<span class="etiquettes">
+  <span class="etiquette ${m.niveau}">${LIBELLE_CEINTURE[m.niveau]}</span>
+  <span class="etiquette difficulte">${LIBELLE_DIFFICULTE[m.difficulte]} · ${plurielPts(pts(m))} ${barrette(pts(m))}</span>
+</span>`;
+
+/* ---------- Pictogrammes des catégories (dessinés en SVG) ---------- */
+
+// Chaque catégorie de missions.json utilise un des 7 pictogrammes
+const PICTO_DE_CATEGORIE = {
+  'balayage': 'balayage', 'passage': 'passage', 'prise de dos': 'dos', 'projection': 'projection',
+  'position': 'controle', 'échappement': 'echappement',
+  'étranglement': 'soumission', 'clé de bras': 'soumission', 'clé de jambe': 'soumission',
+};
+const LIBELLE_PICTO = {
+  balayage: 'Balayage', passage: 'Passage de garde', dos: 'Prise de dos', projection: 'Projection',
+  controle: 'Contrôle / position', echappement: 'Échappement', soumission: 'Soumission',
+};
+
+// Couleurs des dessins : bleu, violet, marron (le sol) sur fond bleu très clair
+const B = '#1d4ed8', V = '#6d28d9', M = '#7a4519';
+const sol = (y = 102) => `<line x1="14" y1="${y}" x2="106" y2="${y}" stroke="${M}"/>`;
+const PICTOS = {
+  // Une flèche qui tourne : on renverse l'adversaire
+  balayage: `${sol(106)}
+    <path d="M30 60 A30 30 0 1 1 60 90" stroke="${B}"/>
+    <polyline points="71,81 60,90 71,99" stroke="${B}"/>
+    <circle cx="60" cy="60" r="11" fill="${V}" stroke="none"/>`,
+  // Les jambes de la garde (le U) et une flèche qui les contourne
+  passage: `<path d="M34 42 V76 Q34 94 52 94 H62 Q80 94 80 76 V42" stroke="${V}"/>
+    <path d="M44 24 C88 6 112 50 100 94" stroke="${B}"/>
+    <polyline points="90,85 100,96 108,83" stroke="${B}"/>`,
+  // Le triangle des jambes autour de la tête
+  soumission: `<path d="M26 94 L94 94 L60 34 Z" stroke="${V}"/>
+    <circle cx="60" cy="76" r="12" fill="${B}" stroke="none"/>`,
+  // Un dos, la ceinture de sécurité (seatbelt) en croix et les deux crochets
+  dos: `<circle cx="60" cy="27" r="12" fill="${B}" stroke="none"/>
+    <path d="M32 54 Q60 44 88 54 L82 94 H38 Z" stroke="${B}"/>
+    <line x1="40" y1="56" x2="78" y2="88" stroke="${V}"/>
+    <line x1="80" y1="56" x2="58" y2="75" stroke="${V}"/>
+    <path d="M38 96 q-9 8 2 15" stroke="${M}"/><path d="M82 96 q9 8 -2 15" stroke="${M}"/>`,
+  // Une trajectoire en pointillés qui retombe au sol
+  projection: `${sol()}
+    <path d="M24 92 Q60 0 96 88" stroke="${B}" stroke-dasharray="1 13"/>
+    <polyline points="85,79 96,88 98,74" stroke="${B}"/>
+    <circle cx="60" cy="46" r="12" fill="${V}" stroke="none"/>`,
+  // Un joueur au sol, l'autre le contrôle du genou
+  controle: `${sol()}
+    <circle cx="24" cy="88" r="8" fill="${B}" stroke="none"/>
+    <line x1="38" y1="88" x2="100" y2="88" stroke="${B}"/>
+    <circle cx="60" cy="28" r="10" fill="${V}" stroke="none"/>
+    <line x1="60" y1="42" x2="60" y2="62" stroke="${V}"/>
+    <polyline points="60,62 54,80" stroke="${V}"/>
+    <polyline points="60,62 84,70 96,80" stroke="${V}"/>
+    <line x1="60" y1="48" x2="46" y2="64" stroke="${V}"/>`,
+  // Coincé en dessous, on sort la hanche et on s'échappe
+  echappement: `${sol()}
+    <circle cx="72" cy="48" r="10" fill="${V}" stroke="none"/>
+    <line x1="18" y1="48" x2="58" y2="48" stroke="${V}"/>
+    <circle cx="22" cy="86" r="9" fill="${B}" stroke="none"/>
+    <line x1="36" y1="86" x2="62" y2="86" stroke="${B}"/>
+    <path d="M62 86 H76 Q96 86 98 62" stroke="${B}"/>
+    <polyline points="90,72 98,60 106,72" stroke="${B}"/>`,
+};
+
+const cleePicto = (m) => PICTO_DE_CATEGORIE[m.categorie] || 'controle';
+
+function picto(m) {
+  const cle = cleePicto(m);
+  return `<svg viewBox="0 0 120 120" role="img" aria-label="${LIBELLE_PICTO[cle]}">
+    <rect width="120" height="120" fill="#e3eafb"/>
+    <g fill="none" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">${PICTOS[cle]}</g>
+  </svg>`;
+}
+
+// La photo de la mission si le champ "image" est rempli, sinon le pictogramme.
+// Si la photo ne se charge pas, on remet le pictogramme.
+function illustration(m) {
+  if (!m.image) return `<div class="illustration">${picto(m)}</div>`;
+  return `<div class="illustration">
+    <img src="${esc(m.image)}" alt="${esc(m.nom)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false">
+    <span hidden>${picto(m)}</span>
+  </div>`;
+}
+
+// Fiche complète d'une mission : dessin, catégorie, nom, étiquettes, étapes
+function ficheMission(m, compacte = false) {
+  const cle = cleePicto(m);
+  const categorie = cle === 'soumission' ? `Soumission · ${m.categorie}` : LIBELLE_PICTO[cle];
+  const etapes = Array.isArray(m.etapes) && m.etapes.length
+    ? `<ol class="etapes">${m.etapes.map((e) => `<li>${esc(e)}</li>`).join('')}</ol>` : '';
+  return `<div class="carte fiche${compacte ? ' compacte' : ''}">
+    ${illustration(m)}
+    <span class="categorie">${esc(categorie)}</span>
+    <span class="nom-mission">${esc(m.nom)}</span>
+    ${badge(m)}
+    ${etapes}
+  </div>`;
+}
+
+// Missions qui correspondent au niveau et à la tenue choisis
+function missionsDisponibles() {
+  const niveauMax = NIVEAUX.indexOf(reglages.niveau);
+  return MISSIONS.filter((m) =>
+    NIVEAUX.indexOf(m.niveau) <= niveauMax && (m.tenue === 'les deux' || m.tenue === reglages.tenue));
+}
+
+// Noms des joueurs ("Joueur 1"… si rien n'est tapé), sans doublon
+function nomsJoueurs(n) {
+  const noms = [];
+  for (let i = 0; i < n; i++) {
+    const base = (reglages.noms[i] || '').trim() || `Joueur ${i + 1}`;
+    let nom = base, k = 2;
+    while (noms.includes(nom)) nom = `${base} ${k++}`;
+    noms.push(nom);
+  }
+  return noms;
+}
+
+// Affiche un nouvel écran
+function afficher(html, { boutonQuitter = true, garderScroll = false } = {}) {
+  arreterChrono();
+  const scroll = window.scrollY;
+  app.innerHTML = (boutonQuitter ? '<button class="quitter" id="quitter">✕ Quitter</button>' : '') + html;
+  window.scrollTo(0, garderScroll ? scroll : 0);
+  if (boutonQuitter) {
+    clic('quitter', () => { if (confirm('Quitter la partie et revenir à l\'accueil ?')) ecranAccueil(); });
+  }
+}
+
+// Branche une action sur le bouton qui a cet id
+function clic(id, action) {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('click', action);
+}
+
+/* =========================================================
+   3. Son, vibration et écran toujours allumé
+   ========================================================= */
+
+let audio = null;
+
+// Les navigateurs exigent un toucher de l'utilisateur avant de jouer un son :
+// on appelle cette fonction quand on appuie sur "Commencer" ou "Démarrer".
+function debloquerSon() {
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    if (audio.state === 'suspended') audio.resume();
+  } catch { audio = null; }
+}
+
+function bip(frequence, debut, duree, volume = 0.5) {
+  if (!audio) return;
+  const osc = audio.createOscillator();
+  const gain = audio.createGain();
+  osc.type = 'square';
+  osc.frequency.value = frequence;
+  gain.gain.setValueAtTime(volume, debut);
+  gain.gain.exponentialRampToValueAtTime(0.001, debut + duree);
+  osc.connect(gain).connect(audio.destination);
+  osc.start(debut);
+  osc.stop(debut + duree);
+}
+
+function sonAttention() { // 10 secondes restantes
+  debloquerSon(); if (!audio) return;
+  const t = audio.currentTime;
+  bip(660, t, 0.15, 0.3); bip(660, t + 0.25, 0.15, 0.3);
+}
+
+function sonFin() { // fin du round
+  debloquerSon();
+  if (audio) {
+    const t = audio.currentTime;
+    [0, 0.4, 0.8].forEach((d) => bip(880, t + d, 0.3));
+    bip(587, t + 1.2, 1.2, 0.6);
+  }
+  if (navigator.vibrate) navigator.vibrate([400, 150, 400, 150, 900]);
+}
+
+// Empêche l'écran de s'éteindre pendant un round (si le téléphone le permet)
+let verrouEcran = null;
+async function garderEcranAllume() {
+  try { if ('wakeLock' in navigator) verrouEcran = await navigator.wakeLock.request('screen'); } catch { /* pas supporté */ }
+}
+function libererEcran() {
+  if (verrouEcran) { verrouEcran.release().catch(() => {}); verrouEcran = null; }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && chrono && chrono.enCours) garderEcranAllume();
+});
+
+/* =========================================================
+   4. Écrans communs
+   ========================================================= */
+
+// Un bouton de choix (mode, niveau, tenue…), allumé s'il correspond au réglage actuel
+function boutonChoix(cle, valeur, contenu) {
+  const actif = String(reglages[cle]) === String(valeur);
+  return `<button class="choix" data-reglage="${cle}" data-valeur="${valeur}" aria-pressed="${actif}">${contenu}</button>`;
+}
+
+function ecranAccueil(garderScroll = false) {
+  const duel = reglages.mode === 'duel';
+  const n = duel ? 2 : reglages.nbJoueurs;
+  const champsNoms = Array.from({ length: n }, (_, i) =>
+    `<input class="champ" data-nom="${i}" maxlength="16" placeholder="Joueur ${i + 1}"
+      value="${esc(reglages.noms[i] || '')}" autocomplete="off" enterkeyhint="done">`).join('');
+
+  afficher(`
+    <header class="logo">
+      <img src="icons/icon.svg" alt="">
+      <h1>Sub<span>Mission</span></h1>
+      <p class="accroche">Des missions secrètes pour pimenter le sparring</p>
+      <div class="deco-ceintures" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+    </header>
+
+    <section class="bloc">
+      <h2>Mode de jeu</h2>
+      <div class="grille-2">
+        ${boutonChoix('mode', 'duel', '⚔️ Duel<small>2 joueurs · missions secrètes</small>')}
+        ${boutonChoix('mode', 'undercover', '🕵️ Undercover<small>3 à 10 joueurs · trouve l\'intrus</small>')}
+      </div>
+    </section>
+
+    <section class="bloc">
+      <h2>Joueurs</h2>
+      ${duel ? '' : `
+        <div class="compteur">
+          <button class="rond" id="moins" aria-label="Un joueur de moins" ${n <= JOUEURS_MIN_UNDERCOVER ? 'disabled' : ''}>−</button>
+          <span>${n}</span>
+          <button class="rond" id="plus" aria-label="Un joueur de plus" ${n >= JOUEURS_MAX_UNDERCOVER ? 'disabled' : ''}>+</button>
+        </div>`}
+      <div class="noms">${champsNoms}</div>
+    </section>
+
+    <section class="bloc">
+      <h2>Niveau</h2>
+      <div class="grille-3">
+        ${NIVEAUX.map((nv) => boutonChoix('niveau', nv, `<span class="ceinture ${nv}"></span>${LIBELLE_NIVEAU[nv]}`)).join('')}
+      </div>
+    </section>
+
+    <section class="bloc">
+      <h2>Tenue</h2>
+      <div class="grille-2">${boutonChoix('tenue', 'gi', 'Gi')}${boutonChoix('tenue', 'no-gi', 'No-gi')}</div>
+    </section>
+
+    ${duel ? `
+    <section class="bloc">
+      <h2>Missions par joueur</h2>
+      <div class="grille-3">${[1, 2, 3].map((k) => boutonChoix('nbMissions', k, String(k))).join('')}</div>
+    </section>` : ''}
+
+    <div class="actions">
+      <button class="btn btn-primaire" id="commencer">Commencer</button>
+      <button class="btn btn-lien" id="regles">Comment jouer ?</button>
+    </div>
+  `, { boutonQuitter: false, garderScroll });
+
+  app.querySelectorAll('[data-reglage]').forEach((b) => b.addEventListener('click', () => {
+    const cle = b.dataset.reglage;
+    reglages[cle] = cle === 'nbMissions' ? Number(b.dataset.valeur) : b.dataset.valeur;
+    sauverReglages();
+    ecranAccueil(true);
+  }));
+  app.querySelectorAll('[data-nom]').forEach((champ) => champ.addEventListener('input', () => {
+    reglages.noms[Number(champ.dataset.nom)] = champ.value;
+    sauverReglages();
+  }));
+  clic('moins', () => { reglages.nbJoueurs--; sauverReglages(); ecranAccueil(true); });
+  clic('plus', () => { reglages.nbJoueurs++; sauverReglages(); ecranAccueil(true); });
+  clic('regles', ecranRegles);
+  clic('commencer', () => {
+    debloquerSon();
+    if (reglages.mode === 'duel') {
+      scoreMatch = null; // nouvelle partie : on remet le score du match à zéro
+      ecranSecurite(nouveauDuel);
+    } else {
+      ecranSecurite(nouvelUndercover);
+    }
+  });
+}
+
+// Règle de sécurité, affichée avant chaque partie
+function ecranSecurite(suite) {
+  afficher(`
+    <div class="centre">
+      <div class="icone-grande">🛡️</div>
+      <h2 class="titre">Règle de sécurité</h2>
+      <div class="carte securite">
+        <p><strong>Une mission de soumission compte dès que la position et le grip sont établis.</strong></p>
+        <p>On ne force jamais jusqu'au tap : on montre, on lâche.</p>
+        <p>Si ton partenaire tape, tu lâches immédiatement. Aucune mission ne vaut une blessure.</p>
+      </div>
+    </div>
+    <div class="actions"><button class="btn btn-primaire" id="ok">J'ai compris, on y va</button></div>
+  `);
+  clic('ok', suite);
+}
+
+// Écran "cache" entre deux joueurs
+function ecranPasser(nom, suite, consigne = 'Les autres, ne regardez pas l\'écran !') {
+  afficher(`
+    <div class="centre">
+      <div class="icone-grande">📱</div>
+      <p class="petit">Passe le téléphone à</p>
+      <h2 class="nom-joueur">${esc(nom)}</h2>
+      <p class="discret">${consigne}</p>
+    </div>
+    <div class="actions"><button class="btn btn-primaire" id="ok">Je suis ${esc(nom)}</button></div>
+  `);
+  clic('ok', suite);
+}
+
+/*
+  Chrono de round.
+  - etape, titre, infoHtml : ce qui s'affiche au-dessus du chrono
+  - actionsAvant : boutons en plus avant de démarrer   [{ libelle, action }]
+  - actionsFin   : boutons affichés quand le temps est fini
+*/
+let chrono = null;
+
+function arreterChrono() {
+  if (chrono) clearInterval(chrono.minuteur);
+  chrono = null;
+  libererEcran();
+}
+
+function formatTemps(ms) {
+  const s = Math.ceil(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function ecranChrono({ etape, titre, infoHtml = '', actionsAvant = [], actionsFin }) {
+  afficher(`
+    <p class="etape">${etape}</p>
+    <h2 class="titre">${titre}</h2>
+    ${infoHtml}
+    <div class="chrono" id="chrono">
+      <div class="temps" id="temps" role="timer"></div>
+      <!-- La ceinture se remplit, et un galon blanc s'allume à chaque quart du round -->
+      <div class="chrono-ceinture" aria-hidden="true">
+        <div class="corps"><div class="rempli" id="prog"></div></div>
+        ${barrette(4, 0)}
+      </div>
+    </div>
+    <div class="grille-3" id="durees">
+      ${DUREES_ROUND.map((d) => `<button class="choix" data-duree="${d}" aria-pressed="${d === reglages.duree}">${d} min</button>`).join('')}
+    </div>
+    <div class="actions" id="actions"></div>
+  `);
+
+  const elTemps = document.getElementById('temps');
+  const elProg = document.getElementById('prog');
+  const elChrono = document.getElementById('chrono');
+  const elActions = document.getElementById('actions');
+  const elDurees = document.getElementById('durees');
+  const galons = elChrono.querySelectorAll('.barrette i');
+
+  let total = reglages.duree * 60 * 1000;
+  let restant = total;
+  let finPrevue = 0;
+  let alerteFaite = false;
+  chrono = { minuteur: null, enCours: false };
+  const monChrono = chrono;
+
+  function dessiner() {
+    elTemps.textContent = formatTemps(restant);
+    const ecoule = 1 - restant / total;
+    elProg.style.width = `${ecoule * 100}%`;
+    galons.forEach((g, i) => g.classList.toggle('eteint', ecoule < (i + 1) / 4));
+    elChrono.classList.toggle('bientot', restant > 0 && restant <= 10000);
+  }
+
+  function boutons(liste) {
+    elActions.innerHTML = liste.map((b, i) =>
+      `<button class="btn ${b.secondaire ? '' : 'btn-primaire'}" data-i="${i}">${b.libelle}</button>`).join('');
+    elActions.querySelectorAll('[data-i]').forEach((el) =>
+      el.addEventListener('click', () => liste[Number(el.dataset.i)].action()));
+  }
+
+  function tic() {
+    restant = Math.max(0, finPrevue - Date.now());
+    if (!alerteFaite && restant <= 10000 && restant > 0) { alerteFaite = true; sonAttention(); }
+    dessiner();
+    if (restant === 0) terminer(true);
+  }
+
+  function lancer() {
+    debloquerSon();
+    elDurees.hidden = true;
+    finPrevue = Date.now() + restant;
+    monChrono.enCours = true;
+    monChrono.minuteur = setInterval(tic, 200);
+    garderEcranAllume();
+    boutons([
+      { libelle: 'Pause', action: pause },
+      { libelle: 'Finir le round', secondaire: true, action: () => { if (confirm('Finir le round maintenant ?')) terminer(false); } },
+    ]);
+  }
+
+  function pause() {
+    clearInterval(monChrono.minuteur);
+    monChrono.enCours = false;
+    restant = Math.max(0, finPrevue - Date.now());
+    dessiner();
+    boutons([
+      { libelle: 'Reprendre', action: lancer },
+      { libelle: 'Finir le round', secondaire: true, action: () => { if (confirm('Finir le round maintenant ?')) terminer(false); } },
+    ]);
+  }
+
+  function terminer(avecSon) {
+    clearInterval(monChrono.minuteur);
+    monChrono.enCours = false;
+    libererEcran();
+    restant = 0;
+    dessiner();
+    elChrono.classList.remove('bientot');
+    elChrono.classList.add('fini');
+    elTemps.textContent = 'TEMPS !';
+    if (avecSon) sonFin();
+    boutons(actionsFin);
+  }
+
+  elDurees.querySelectorAll('[data-duree]').forEach((b) => b.addEventListener('click', () => {
+    reglages.duree = Number(b.dataset.duree);
+    sauverReglages();
+    total = restant = reglages.duree * 60 * 1000;
+    elDurees.querySelectorAll('[data-duree]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    dessiner();
+  }));
+
+  dessiner();
+  boutons([{ libelle: 'Démarrer le round', action: lancer }, ...actionsAvant.map((a) => ({ ...a, secondaire: true }))]);
+}
+
+function ecranRegles() {
+  afficher(`
+    <h2 class="titre">Comment jouer</h2>
+    <div class="regles">
+      <h3>🛡️ Sécurité</h3>
+      <p>Une mission de soumission compte dès que la position et le grip sont établis. On ne force jamais jusqu'au tap.</p>
+
+      <h3>⚔️ Duel (2 joueurs)</h3>
+      <ul>
+        <li>Chacun découvre en secret ses missions, puis passe le téléphone.</li>
+        <li>Lancez le chrono et faites votre sparring en essayant de placer vos missions.</li>
+        <li>À la fin, chacun coche ses missions réussies, puis essaie de deviner celles de l'autre.</li>
+        <li>Bien deviné une mission réussie par l'autre ? Tu lui voles ses points !</li>
+        <li>Points : facile 1 · moyen 2 · difficile 3 · soumission 5.</li>
+      </ul>
+
+      <h3>🕵️ Undercover (3 à 10 joueurs)</h3>
+      <ul>
+        <li>Tout le monde reçoit la même technique secrète… sauf un joueur, l'undercover, qui en a une autre (souvent proche).</li>
+        <li>L'undercover ne sait pas qu'il l'est ! À vous de le comprendre en roulant.</li>
+        <li>Les rounds tournent : l'app indique qui roule avec qui.</li>
+        <li>À la fin, chacun vote en secret. Si l'undercover n'est pas le plus voté (égalité comprise), il gagne.</li>
+      </ul>
+    </div>
+    <div class="actions"><button class="btn btn-primaire" id="ok">Retour</button></div>
+  `);
+  clic('ok', () => ecranAccueil());
+}
+
+/* =========================================================
+   5. Mode Duel
+   ========================================================= */
+
+let duel = null;        // la manche en cours
+let scoreMatch = null;  // le score cumulé sur plusieurs revanches
+
+function nouveauDuel() {
+  const noms = nomsJoueurs(2);
+  const k = reglages.nbMissions;
+  const dispo = melanger(missionsDisponibles());
+  if (dispo.length < 2 * k + 2) {
+    alert('Pas assez de missions pour ces réglages. Ajoute-en dans missions.json.');
+    return ecranAccueil();
+  }
+
+  const joueurs = noms.map((nom, i) => ({
+    nom,
+    missions: dispo.slice(i * k, (i + 1) * k), // ses missions secrètes
+    reussies: new Set(),                         // celles qu'il a cochées
+    devinettes: new Set(),                       // ce qu'il pense que l'autre avait
+    propositions: [],                            // la liste dans laquelle il devine
+  }));
+  // Fausses pistes : des missions qu'aucun des deux n'a reçues
+  const leurres = dispo.slice(2 * k);
+  joueurs.forEach((j, i) => {
+    const adversaire = joueurs[1 - i];
+    j.propositions = melanger([
+      ...adversaire.missions,
+      ...melanger(leurres).slice(0, NB_PROPOSITIONS_DEVINETTE - k),
+    ]);
+  });
+
+  duel = { joueurs };
+  if (!scoreMatch || scoreMatch.noms.join('|') !== noms.join('|')) {
+    scoreMatch = { noms, totaux: [0, 0], manches: 0 };
+  }
+  ecranPasser(joueurs[0].nom, () => duelMontrerMissions(0));
+}
+
+function duelMontrerMissions(i) {
+  const j = duel.joueurs[i];
+  afficher(`
+    <p class="etape">Tes missions secrètes</p>
+    <h2 class="titre petit-titre">${esc(j.nom)}</h2>
+    <div class="liste">${j.missions.map((m) => ficheMission(m, j.missions.length > 1)).join('')}</div>
+    <p class="discret centre-txt">Mémorise-les, puis cache l'écran avant de passer le téléphone.</p>
+    <div class="actions apres-contenu"><button class="btn btn-primaire" id="ok">C'est mémorisé, cacher</button></div>
+  `);
+  clic('ok', () => {
+    if (i === 0) ecranPasser(duel.joueurs[1].nom, () => duelMontrerMissions(1));
+    else duelRound();
+  });
+}
+
+function duelRound() {
+  const [a, b] = duel.joueurs;
+  ecranChrono({
+    etape: 'Round',
+    titre: `${esc(a.nom)} <span class="accent-txt">vs</span> ${esc(b.nom)}`,
+    actionsFin: [{ libelle: 'Valider les missions', action: () => ecranPasser(a.nom, () => duelCocher(0)) }],
+  });
+}
+
+// Bouton cochable utilisé pour valider ou deviner une mission
+function ligneMission(m, index, coche) {
+  return `<button class="choix ligne" data-index="${index}" aria-pressed="${coche}">
+    <span class="case"></span>
+    <span class="texte"><span>${esc(m.nom)}</span>${badge(m)}</span>
+  </button>`;
+}
+
+// Étape 1 pour un joueur : cocher ses missions réussies
+function duelCocher(i) {
+  const j = duel.joueurs[i];
+  afficher(`
+    <p class="etape">Fin du round</p>
+    <h2 class="titre">${esc(j.nom)}, qu'as-tu réussi ?</h2>
+    <p class="discret centre-txt">Touche les missions que tu as réussies. Sois honnête !</p>
+    <div class="liste">${j.missions.map((m, x) => ligneMission(m, x, j.reussies.has(m))).join('')}</div>
+    <div class="actions"><button class="btn btn-primaire" id="ok">Valider</button></div>
+  `);
+  app.querySelectorAll('[data-index]').forEach((b) => b.addEventListener('click', () => {
+    const m = j.missions[Number(b.dataset.index)];
+    if (j.reussies.has(m)) j.reussies.delete(m); else j.reussies.add(m);
+    b.setAttribute('aria-pressed', String(j.reussies.has(m)));
+  }));
+  clic('ok', () => duelDeviner(i));
+}
+
+// Étape 2 pour un joueur : deviner les missions de l'autre
+function duelDeviner(i) {
+  const j = duel.joueurs[i];
+  const adversaire = duel.joueurs[1 - i];
+  const k = adversaire.missions.length;
+  const s = k > 1 ? 's' : '';
+  afficher(`
+    <p class="etape">Devinette</p>
+    <h2 class="titre">Quelle${s} mission${s} avait ${esc(adversaire.nom)} ?</h2>
+    <p class="discret centre-txt">Si tu trouves une mission qu'il a réussie, tu lui voles ses points.</p>
+    <p class="compte-choix" id="compte"></p>
+    <div class="liste">${j.propositions.map((m, x) => ligneMission(m, x, j.devinettes.has(m))).join('')}</div>
+    <div class="actions"><button class="btn btn-primaire" id="ok">Valider mes choix</button></div>
+  `);
+  const majCompte = () => {
+    document.getElementById('compte').textContent = `${j.devinettes.size} / ${k} choisie${s}`;
+    document.getElementById('ok').disabled = j.devinettes.size !== k;
+  };
+  app.querySelectorAll('[data-index]').forEach((b) => b.addEventListener('click', () => {
+    const m = j.propositions[Number(b.dataset.index)];
+    if (j.devinettes.has(m)) j.devinettes.delete(m);
+    else if (j.devinettes.size < k) j.devinettes.add(m);
+    b.setAttribute('aria-pressed', String(j.devinettes.has(m)));
+    majCompte();
+  }));
+  majCompte();
+  clic('ok', () => {
+    if (i === 0) ecranPasser(duel.joueurs[1].nom, () => duelCocher(1));
+    else duelCalculerScores();
+  });
+}
+
+function duelCalculerScores() {
+  const [A, B] = duel.joueurs;
+  // Points volés par un joueur : missions de l'adversaire bien devinées ET réussies
+  const vols = (j, adv) => [...j.devinettes]
+    .filter((m) => adv.missions.includes(m) && adv.reussies.has(m))
+    .reduce((s, m) => s + pts(m), 0);
+  const base = (j) => j.missions.filter((m) => j.reussies.has(m)).reduce((s, m) => s + pts(m), 0);
+
+  const volsA = vols(A, B), volsB = vols(B, A);
+  duel.scores = [base(A) + volsA - volsB, base(B) + volsB - volsA];
+  scoreMatch.totaux[0] += duel.scores[0];
+  scoreMatch.totaux[1] += duel.scores[1];
+  scoreMatch.manches++;
+  duelResultats();
+}
+
+function duelResultats() {
+  const { joueurs, scores } = duel;
+
+  const carteJoueur = (i) => {
+    const j = joueurs[i];
+    const adv = joueurs[1 - i];
+    const lignesMissions = j.missions.map((m) => {
+      const reussie = j.reussies.has(m);
+      const volee = reussie && adv.devinettes.has(m);
+      let detail = reussie ? `+${plurielPts(pts(m))}` : 'Pas réussie';
+      if (volee) detail = `Réussie, mais devinée par ${esc(adv.nom)} : points volés !`;
+      return `<div class="resultat-ligne">
+        <span class="icone ${reussie ? 'oui' : 'non'}">${reussie ? '✓' : '✗'}</span>
+        <span>${esc(m.nom)}<span class="detail">${detail}</span></span>
+      </div>`;
+    }).join('');
+    const lignesDevinettes = [...j.devinettes].map((m) => {
+      const juste = adv.missions.includes(m);
+      let detail = 'Raté';
+      if (juste && adv.reussies.has(m)) detail = `Bien vu ! +${plurielPts(pts(m))} volé${pts(m) > 1 ? 's' : ''}`;
+      else if (juste) detail = 'Bien vu, mais pas réussie : rien à voler';
+      return `<div class="resultat-ligne">
+        <span class="icone ${juste ? 'oui' : 'non'}">${juste ? '🎯' : '✗'}</span>
+        <span>${esc(m.nom)}<span class="detail">${detail}</span></span>
+      </div>`;
+    }).join('');
+    return `<div class="carte score-joueur">
+      <div class="score-entete"><h3>${esc(j.nom)}</h3><span class="pts">${plurielPts(scores[i])}</span></div>
+      <p class="sous-titre">Ses missions</p>${lignesMissions}
+      <p class="sous-titre">Ses devinettes</p>${lignesDevinettes}
+    </div>`;
+  };
+
+  let banniere = '🤝 Égalité !';
+  if (scores[0] !== scores[1]) banniere = `🏆 ${esc(joueurs[scores[0] > scores[1] ? 0 : 1].nom)} gagne la manche`;
+
+  afficher(`
+    <p class="etape">Résultats</p>
+    <div class="banniere">${banniere}</div>
+    ${scoreMatch.manches > 1 ? `<p class="match">Score du match (${scoreMatch.manches} manches) :<br>
+      <strong>${esc(joueurs[0].nom)} ${scoreMatch.totaux[0]} — ${scoreMatch.totaux[1]} ${esc(joueurs[1].nom)}</strong></p>` : ''}
+    ${carteJoueur(0)}
+    ${carteJoueur(1)}
+    <div class="actions">
+      <button class="btn btn-primaire" id="revanche">Revanche</button>
+      <button class="btn" id="accueil">Accueil</button>
+    </div>
+  `, { boutonQuitter: false });
+  clic('revanche', () => ecranSecurite(nouveauDuel));
+  clic('accueil', () => ecranAccueil());
+}
+
+/* =========================================================
+   6. Mode Undercover
+   ========================================================= */
+
+let uc = null;
+
+function nouvelUndercover() {
+  const noms = nomsJoueurs(reglages.nbJoueurs);
+  const dispo = missionsDisponibles();
+  if (dispo.length < 2) {
+    alert('Pas assez de missions pour ces réglages. Ajoute-en dans missions.json.');
+    return ecranAccueil();
+  }
+  // Technique des civils, puis une technique proche (même catégorie) pour l'undercover
+  const civil = auHasard(dispo);
+  let proches = dispo.filter((m) => m !== civil && m.categorie === civil.categorie);
+  if (proches.length === 0) proches = dispo.filter((m) => m !== civil);
+  const intrus = auHasard(proches);
+
+  uc = {
+    noms, civil, intrus,
+    undercover: Math.floor(Math.random() * noms.length),
+    rounds: planningRounds(noms.length),
+    round: 0,
+    votes: [],
+  };
+  ecranPasser(noms[0], () => ucMontrerTechnique(0, true));
+}
+
+const techniqueDe = (i) => (i === uc.undercover ? uc.intrus : uc.civil);
+
+// Rotation "chacun contre chacun" (méthode du cercle). Si nombre impair, un joueur se repose.
+function planningRounds(n) {
+  const ordre = melanger([...Array(n).keys()]);
+  if (ordre.length % 2) ordre.push(null);
+  const m = ordre.length;
+  const rounds = [];
+  for (let r = 0; r < m - 1; r++) {
+    const paires = [], repos = [];
+    for (let i = 0; i < m / 2; i++) {
+      const a = ordre[i], b = ordre[m - 1 - i];
+      if (a === null) repos.push(b);
+      else if (b === null) repos.push(a);
+      else paires.push([a, b]);
+    }
+    rounds.push({ paires, repos });
+    ordre.splice(1, 0, ordre.pop()); // on fait tourner tout le monde sauf le premier
+  }
+  return rounds;
+}
+
+function ucMontrerTechnique(i, distribution) {
+  const m = techniqueDe(i);
+  afficher(`
+    <p class="etape">Ta technique secrète</p>
+    <h2 class="titre petit-titre">${esc(uc.noms[i])}</h2>
+    ${ficheMission(m)}
+    <p class="discret centre-txt">Tout le monde a la même technique… sauf l'undercover, qui en a une autre.
+      C'est peut-être toi ! Place-la pendant les rounds sans te faire griller.</p>
+    <div class="actions apres-contenu"><button class="btn btn-primaire" id="ok">C'est mémorisé, cacher</button></div>
+  `);
+  clic('ok', () => {
+    if (distribution && i + 1 < uc.noms.length) ecranPasser(uc.noms[i + 1], () => ucMontrerTechnique(i + 1, true));
+    else ucRound();
+  });
+}
+
+function ucRound() {
+  const r = uc.rounds[uc.round];
+  const dernier = uc.round === uc.rounds.length - 1;
+  const nom = (i) => esc(uc.noms[i]);
+  const infoHtml = `
+    <ul class="paires">${r.paires.map(([a, b]) => `<li>${nom(a)}<span>vs</span>${nom(b)}</li>`).join('')}</ul>
+    ${r.repos.length ? `<p class="discret centre-txt">Au repos (observe bien !) : ${r.repos.map(nom).join(', ')}</p>` : ''}`;
+
+  const actionsFin = dernier
+    ? [{ libelle: 'Passer au vote', action: () => ucVoter(0) }]
+    : [
+      { libelle: 'Round suivant', action: () => { uc.round++; ucRound(); } },
+      { libelle: 'Passer au vote', secondaire: true, action: () => ucVoter(0) },
+    ];
+  const actionsAvant = [{ libelle: 'Revoir ma technique', action: ucChoisirQuiRevoit }];
+  if (uc.round > 0) actionsAvant.push({ libelle: 'Passer au vote', action: () => ucVoter(0) });
+
+  ecranChrono({ etape: `Round ${uc.round + 1} / ${uc.rounds.length}`, titre: 'Sparring !', infoHtml, actionsAvant, actionsFin });
+}
+
+function ucChoisirQuiRevoit() {
+  afficher(`
+    <h2 class="titre">Qui veut revoir sa technique ?</h2>
+    <div class="grille-2">${uc.noms.map((n, i) => `<button class="choix" data-i="${i}">${esc(n)}</button>`).join('')}</div>
+    <div class="actions"><button class="btn" id="retour">Retour</button></div>
+  `);
+  app.querySelectorAll('[data-i]').forEach((b) => b.addEventListener('click', () => {
+    const i = Number(b.dataset.i);
+    ecranPasser(uc.noms[i], () => ucMontrerTechnique(i, false));
+  }));
+  clic('retour', ucRound);
+}
+
+function ucVoter(i) {
+  ecranPasser(uc.noms[i], () => ucBulletin(i), 'Vote secret : les autres ne regardent pas !');
+}
+
+function ucBulletin(i) {
+  let choix = null;
+  afficher(`
+    <p class="etape">Vote</p>
+    <h2 class="titre">${esc(uc.noms[i])}, qui est l'undercover ?</h2>
+    <div class="grille-2">
+      ${uc.noms.map((n, x) => (x === i ? '' : `<button class="choix" data-i="${x}" aria-pressed="false">${esc(n)}</button>`)).join('')}
+    </div>
+    <div class="actions"><button class="btn btn-primaire" id="ok" disabled>Confirmer mon vote</button></div>
+  `);
+  app.querySelectorAll('[data-i]').forEach((b) => b.addEventListener('click', () => {
+    choix = Number(b.dataset.i);
+    app.querySelectorAll('[data-i]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    document.getElementById('ok').disabled = false;
+  }));
+  clic('ok', () => {
+    uc.votes[i] = choix;
+    if (i + 1 < uc.noms.length) ucVoter(i + 1);
+    else ucResultats();
+  });
+}
+
+function ucResultats() {
+  const { noms, votes, undercover } = uc;
+  const compte = noms.map(() => 0);
+  votes.forEach((v) => compte[v]++);
+  const max = Math.max(...compte);
+  const plusVotes = compte.map((c, i) => (c === max ? i : -1)).filter((i) => i >= 0);
+  const demasque = plusVotes.length === 1 && plusVotes[0] === undercover;
+
+  const ordre = noms.map((_, i) => i).sort((a, b) => compte[b] - compte[a]);
+  const barres = ordre.map((i) => {
+    const qui = votes.map((v, x) => (v === i ? esc(noms[x]) : null)).filter(Boolean);
+    return `<div class="barre-vote ${i === undercover ? 'intrus' : ''}">
+      <div class="haut"><span>${i === undercover ? '🕵️ ' : ''}${esc(noms[i])}</span><span>${compte[i]} vote${compte[i] > 1 ? 's' : ''}</span></div>
+      <div class="jauge"><div style="width:${(compte[i] / noms.length) * 100}%"></div></div>
+      ${qui.length ? `<span class="detail">Voté par : ${qui.join(', ')}</span>` : ''}
+    </div>`;
+  }).join('');
+
+  afficher(`
+    <p class="etape">Résultats</p>
+    <h2 class="titre">L'undercover était…<br><span class="accent-txt">${esc(noms[undercover])}</span></h2>
+    <div class="banniere">${demasque ? '🎉 Démasqué ! Les autres gagnent' : `🕵️ Pas démasqué : ${esc(noms[undercover])} gagne !`}</div>
+    <div class="carte">
+      <p class="sous-titre">Technique de tout le monde</p>
+      <p class="nom-mission" style="margin:4px 0 12px">${esc(uc.civil.nom)}</p>
+      <p class="sous-titre">Technique de l'undercover</p>
+      <p class="nom-mission" style="margin:4px 0 0">${esc(uc.intrus.nom)}</p>
+    </div>
+    <div class="carte" style="margin-top:12px">
+      <p class="sous-titre">Les votes</p>
+      ${barres}
+    </div>
+    <div class="actions">
+      <button class="btn btn-primaire" id="rejouer">Rejouer</button>
+      <button class="btn" id="accueil">Accueil</button>
+    </div>
+  `, { boutonQuitter: false });
+  clic('rejouer', () => ecranSecurite(nouvelUndercover));
+  clic('accueil', () => ecranAccueil());
+}
+
+/* =========================================================
+   7. Démarrage
+   ========================================================= */
+
+async function demarrer() {
+  try {
+    const reponse = await fetch('missions.json', { cache: 'no-cache' });
+    const liste = await reponse.json();
+    // On garde seulement les missions bien écrites (et on signale les autres)
+    MISSIONS = liste.filter((m) => {
+      const ok = m && m.nom && NIVEAUX.includes(m.niveau) && POINTS[m.difficulte]
+        && ['gi', 'no-gi', 'les deux'].includes(m.tenue);
+      if (!ok) console.warn('Mission ignorée (champ manquant ou mal écrit) :', m);
+      return ok;
+    });
+  } catch (e) {
+    app.innerHTML = `<div class="centre"><div class="icone-grande">⚠️</div>
+      <h2 class="titre">Impossible de charger les missions</h2>
+      <p class="discret">Vérifie que missions.json est bien écrit et que l'app est ouverte depuis un serveur
+      (voir le README), pas en double-cliquant sur le fichier.</p></div>`;
+    console.error(e);
+    return;
+  }
+  // Si les réglages sauvegardés sont bizarres, on revient à des valeurs sûres
+  if (!NIVEAUX.includes(reglages.niveau)) reglages.niveau = 'blanche';
+  if (!['gi', 'no-gi'].includes(reglages.tenue)) reglages.tenue = 'gi';
+  if (!DUREES_ROUND.includes(reglages.duree)) reglages.duree = 5;
+  reglages.nbJoueurs = Math.min(JOUEURS_MAX_UNDERCOVER, Math.max(JOUEURS_MIN_UNDERCOVER, Number(reglages.nbJoueurs) || 4));
+  ecranAccueil();
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+
+demarrer();
