@@ -69,7 +69,111 @@ function esc(texte) {
 
 const pts = (m) => POINTS[m.difficulte];
 const plurielPts = (n) => `${n} pt${Math.abs(n) > 1 ? 's' : ''}`;
-const badge = (m) => `<span class="badge ${m.difficulte}">${LIBELLE_DIFFICULTE[m.difficulte]} · ${plurielPts(pts(m))}</span>`;
+// Barrette noire avec des galons blancs, comme au bout d'une ceinture.
+// "allumes" = combien de galons sont blancs (les autres sont gris).
+const barrette = (n, allumes = n) => `<span class="barrette" aria-hidden="true">${
+  Array.from({ length: n }, (_, i) => `<i${i < allumes ? '' : ' class="eteint"'}></i>`).join('')}</span>`;
+
+// Étiquettes d'une mission : son niveau (couleur de ceinture) et sa difficulté (1 galon = 1 point)
+const LIBELLE_CEINTURE = { blanche: 'Blanche', bleue: 'Bleue', violette: 'Violette +' };
+const badge = (m) => `<span class="etiquettes">
+  <span class="etiquette ${m.niveau}">${LIBELLE_CEINTURE[m.niveau]}</span>
+  <span class="etiquette difficulte">${LIBELLE_DIFFICULTE[m.difficulte]} · ${plurielPts(pts(m))} ${barrette(pts(m))}</span>
+</span>`;
+
+/* ---------- Pictogrammes des catégories (dessinés en SVG) ---------- */
+
+// Chaque catégorie de missions.json utilise un des 7 pictogrammes
+const PICTO_DE_CATEGORIE = {
+  'balayage': 'balayage', 'passage': 'passage', 'prise de dos': 'dos', 'projection': 'projection',
+  'position': 'controle', 'échappement': 'echappement',
+  'étranglement': 'soumission', 'clé de bras': 'soumission', 'clé de jambe': 'soumission',
+};
+const LIBELLE_PICTO = {
+  balayage: 'Balayage', passage: 'Passage de garde', dos: 'Prise de dos', projection: 'Projection',
+  controle: 'Contrôle / position', echappement: 'Échappement', soumission: 'Soumission',
+};
+
+// Couleurs des dessins : bleu, violet, marron (le sol) sur fond bleu très clair
+const B = '#1d4ed8', V = '#6d28d9', M = '#7a4519';
+const sol = (y = 102) => `<line x1="14" y1="${y}" x2="106" y2="${y}" stroke="${M}"/>`;
+const PICTOS = {
+  // Une flèche qui tourne : on renverse l'adversaire
+  balayage: `${sol(106)}
+    <path d="M30 60 A30 30 0 1 1 60 90" stroke="${B}"/>
+    <polyline points="71,81 60,90 71,99" stroke="${B}"/>
+    <circle cx="60" cy="60" r="11" fill="${V}" stroke="none"/>`,
+  // Les jambes de la garde (le U) et une flèche qui les contourne
+  passage: `<path d="M34 42 V76 Q34 94 52 94 H62 Q80 94 80 76 V42" stroke="${V}"/>
+    <path d="M44 24 C88 6 112 50 100 94" stroke="${B}"/>
+    <polyline points="90,85 100,96 108,83" stroke="${B}"/>`,
+  // Le triangle des jambes autour de la tête
+  soumission: `<path d="M26 94 L94 94 L60 34 Z" stroke="${V}"/>
+    <circle cx="60" cy="76" r="12" fill="${B}" stroke="none"/>`,
+  // Un dos, la ceinture de sécurité (seatbelt) en croix et les deux crochets
+  dos: `<circle cx="60" cy="27" r="12" fill="${B}" stroke="none"/>
+    <path d="M32 54 Q60 44 88 54 L82 94 H38 Z" stroke="${B}"/>
+    <line x1="40" y1="56" x2="78" y2="88" stroke="${V}"/>
+    <line x1="80" y1="56" x2="58" y2="75" stroke="${V}"/>
+    <path d="M38 96 q-9 8 2 15" stroke="${M}"/><path d="M82 96 q9 8 -2 15" stroke="${M}"/>`,
+  // Une trajectoire en pointillés qui retombe au sol
+  projection: `${sol()}
+    <path d="M24 92 Q60 0 96 88" stroke="${B}" stroke-dasharray="1 13"/>
+    <polyline points="85,79 96,88 98,74" stroke="${B}"/>
+    <circle cx="60" cy="46" r="12" fill="${V}" stroke="none"/>`,
+  // Un joueur au sol, l'autre le contrôle du genou
+  controle: `${sol()}
+    <circle cx="24" cy="88" r="8" fill="${B}" stroke="none"/>
+    <line x1="38" y1="88" x2="100" y2="88" stroke="${B}"/>
+    <circle cx="60" cy="28" r="10" fill="${V}" stroke="none"/>
+    <line x1="60" y1="42" x2="60" y2="62" stroke="${V}"/>
+    <polyline points="60,62 54,80" stroke="${V}"/>
+    <polyline points="60,62 84,70 96,80" stroke="${V}"/>
+    <line x1="60" y1="48" x2="46" y2="64" stroke="${V}"/>`,
+  // Coincé en dessous, on sort la hanche et on s'échappe
+  echappement: `${sol()}
+    <circle cx="72" cy="48" r="10" fill="${V}" stroke="none"/>
+    <line x1="18" y1="48" x2="58" y2="48" stroke="${V}"/>
+    <circle cx="22" cy="86" r="9" fill="${B}" stroke="none"/>
+    <line x1="36" y1="86" x2="62" y2="86" stroke="${B}"/>
+    <path d="M62 86 H76 Q96 86 98 62" stroke="${B}"/>
+    <polyline points="90,72 98,60 106,72" stroke="${B}"/>`,
+};
+
+const cleePicto = (m) => PICTO_DE_CATEGORIE[m.categorie] || 'controle';
+
+function picto(m) {
+  const cle = cleePicto(m);
+  return `<svg viewBox="0 0 120 120" role="img" aria-label="${LIBELLE_PICTO[cle]}">
+    <rect width="120" height="120" fill="#e3eafb"/>
+    <g fill="none" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">${PICTOS[cle]}</g>
+  </svg>`;
+}
+
+// La photo de la mission si le champ "image" est rempli, sinon le pictogramme.
+// Si la photo ne se charge pas, on remet le pictogramme.
+function illustration(m) {
+  if (!m.image) return `<div class="illustration">${picto(m)}</div>`;
+  return `<div class="illustration">
+    <img src="${esc(m.image)}" alt="${esc(m.nom)}" onerror="this.hidden=true;this.nextElementSibling.hidden=false">
+    <span hidden>${picto(m)}</span>
+  </div>`;
+}
+
+// Fiche complète d'une mission : dessin, catégorie, nom, étiquettes, étapes
+function ficheMission(m, compacte = false) {
+  const cle = cleePicto(m);
+  const categorie = cle === 'soumission' ? `Soumission · ${m.categorie}` : LIBELLE_PICTO[cle];
+  const etapes = Array.isArray(m.etapes) && m.etapes.length
+    ? `<ol class="etapes">${m.etapes.map((e) => `<li>${esc(e)}</li>`).join('')}</ol>` : '';
+  return `<div class="carte fiche${compacte ? ' compacte' : ''}">
+    ${illustration(m)}
+    <span class="categorie">${esc(categorie)}</span>
+    <span class="nom-mission">${esc(m.nom)}</span>
+    ${badge(m)}
+    ${etapes}
+  </div>`;
+}
 
 // Missions qui correspondent au niveau et à la tenue choisis
 function missionsDisponibles() {
@@ -185,6 +289,7 @@ function ecranAccueil(garderScroll = false) {
       <img src="icons/icon.svg" alt="">
       <h1>Sub<span>Mission</span></h1>
       <p class="accroche">Des missions secrètes pour pimenter le sparring</p>
+      <div class="deco-ceintures" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
     </header>
 
     <section class="bloc">
@@ -305,18 +410,17 @@ function formatTemps(ms) {
 }
 
 function ecranChrono({ etape, titre, infoHtml = '', actionsAvant = [], actionsFin }) {
-  const CIRCONFERENCE = 2 * Math.PI * 54;
   afficher(`
     <p class="etape">${etape}</p>
     <h2 class="titre">${titre}</h2>
     ${infoHtml}
     <div class="chrono" id="chrono">
-      <svg class="anneau" viewBox="0 0 120 120" aria-hidden="true">
-        <circle class="anneau-fond" cx="60" cy="60" r="54"/>
-        <circle class="anneau-prog" id="prog" cx="60" cy="60" r="54"
-          stroke-dasharray="${CIRCONFERENCE}" stroke-dashoffset="0"/>
-      </svg>
       <div class="temps" id="temps" role="timer"></div>
+      <!-- La ceinture se remplit, et un galon blanc s'allume à chaque quart du round -->
+      <div class="chrono-ceinture" aria-hidden="true">
+        <div class="corps"><div class="rempli" id="prog"></div></div>
+        ${barrette(4, 0)}
+      </div>
     </div>
     <div class="grille-3" id="durees">
       ${DUREES_ROUND.map((d) => `<button class="choix" data-duree="${d}" aria-pressed="${d === reglages.duree}">${d} min</button>`).join('')}
@@ -329,6 +433,7 @@ function ecranChrono({ etape, titre, infoHtml = '', actionsAvant = [], actionsFi
   const elChrono = document.getElementById('chrono');
   const elActions = document.getElementById('actions');
   const elDurees = document.getElementById('durees');
+  const galons = elChrono.querySelectorAll('.barrette i');
 
   let total = reglages.duree * 60 * 1000;
   let restant = total;
@@ -339,7 +444,9 @@ function ecranChrono({ etape, titre, infoHtml = '', actionsAvant = [], actionsFi
 
   function dessiner() {
     elTemps.textContent = formatTemps(restant);
-    elProg.setAttribute('stroke-dashoffset', String(CIRCONFERENCE * (1 - restant / total)));
+    const ecoule = 1 - restant / total;
+    elProg.style.width = `${ecoule * 100}%`;
+    galons.forEach((g, i) => g.classList.toggle('eteint', ecoule < (i + 1) / 4));
     elChrono.classList.toggle('bientot', restant > 0 && restant <= 10000);
   }
 
@@ -479,12 +586,10 @@ function duelMontrerMissions(i) {
   const j = duel.joueurs[i];
   afficher(`
     <p class="etape">Tes missions secrètes</p>
-    <h2 class="titre">${esc(j.nom)}</h2>
-    <ul class="liste">
-      ${j.missions.map((m) => `<li class="carte mission"><span class="nom-mission">${esc(m.nom)}</span>${badge(m)}</li>`).join('')}
-    </ul>
+    <h2 class="titre petit-titre">${esc(j.nom)}</h2>
+    <div class="liste">${j.missions.map((m) => ficheMission(m, j.missions.length > 1)).join('')}</div>
     <p class="discret centre-txt">Mémorise-les, puis cache l'écran avant de passer le téléphone.</p>
-    <div class="actions"><button class="btn btn-primaire" id="ok">C'est mémorisé, cacher</button></div>
+    <div class="actions apres-contenu"><button class="btn btn-primaire" id="ok">C'est mémorisé, cacher</button></div>
   `);
   clic('ok', () => {
     if (i === 0) ecranPasser(duel.joueurs[1].nom, () => duelMontrerMissions(1));
@@ -496,7 +601,7 @@ function duelRound() {
   const [a, b] = duel.joueurs;
   ecranChrono({
     etape: 'Round',
-    titre: `${esc(a.nom)} <span style="color:var(--accent)">vs</span> ${esc(b.nom)}`,
+    titre: `${esc(a.nom)} <span class="accent-txt">vs</span> ${esc(b.nom)}`,
     actionsFin: [{ libelle: 'Valider les missions', action: () => ecranPasser(a.nom, () => duelCocher(0)) }],
   });
 }
@@ -682,11 +787,11 @@ function ucMontrerTechnique(i, distribution) {
   const m = techniqueDe(i);
   afficher(`
     <p class="etape">Ta technique secrète</p>
-    <h2 class="titre">${esc(uc.noms[i])}</h2>
-    <div class="carte mission"><span class="nom-mission">${esc(m.nom)}</span>${badge(m)}</div>
+    <h2 class="titre petit-titre">${esc(uc.noms[i])}</h2>
+    ${ficheMission(m)}
     <p class="discret centre-txt">Tout le monde a la même technique… sauf l'undercover, qui en a une autre.
       C'est peut-être toi ! Place-la pendant les rounds sans te faire griller.</p>
-    <div class="actions"><button class="btn btn-primaire" id="ok">C'est mémorisé, cacher</button></div>
+    <div class="actions apres-contenu"><button class="btn btn-primaire" id="ok">C'est mémorisé, cacher</button></div>
   `);
   clic('ok', () => {
     if (distribution && i + 1 < uc.noms.length) ecranPasser(uc.noms[i + 1], () => ucMontrerTechnique(i + 1, true));
@@ -773,7 +878,7 @@ function ucResultats() {
 
   afficher(`
     <p class="etape">Résultats</p>
-    <h2 class="titre">L'undercover était…<br><span style="color:var(--accent)">${esc(noms[undercover])}</span></h2>
+    <h2 class="titre">L'undercover était…<br><span class="accent-txt">${esc(noms[undercover])}</span></h2>
     <div class="banniere">${demasque ? '🎉 Démasqué ! Les autres gagnent' : `🕵️ Pas démasqué : ${esc(noms[undercover])} gagne !`}</div>
     <div class="carte">
       <p class="sous-titre">Technique de tout le monde</p>
