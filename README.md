@@ -57,3 +57,16 @@ Puis ouvre http://localhost:8000 dans ton navigateur.
 ## Après une modification
 
 Change le numéro dans `sw.js` (`submission-v1` → `submission-v2`) pour que les téléphones récupèrent la nouvelle version.
+
+## Statistiques (anonymes, sans cookies)
+
+- **Visites** : Cloudflare Web Analytics est déjà installé (le code est en bas de `index.html`).
+- **Événements** (partie lancée, partie terminée, mode joué) : Cloudflare ne sait pas les suivre.
+  L'app les envoie à **GoatCounter**, gratuit et sans cookies, dès que tu l'actives :
+  1. Crée un compte gratuit sur https://www.goatcounter.com et choisis un code (par exemple `submission`).
+  2. Dans `index.html`, en bas, enlève les lignes `<!--` et `-->` autour du script GoatCounter
+     et remplace `TON-CODE` par ton code.
+  3. Change la version dans `sw.js`, puis envoie sur GitHub.
+
+  Les événements apparaissent dans GoatCounter sous les noms `partie-lancee`, `partie-terminee`,
+  `mode-duel` et `mode-undercover`. Les noms des joueurs ne sont jamais envoyés.

@@ -219,6 +219,19 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && chrono && chrono.enCours) garderEcranAllume();
 });
 
+/* ---------- Statistiques anonymes (événements) ----------
+   Cloudflare Web Analytics compte les visites mais ne sait pas suivre des événements.
+   Les événements sont envoyés à GoatCounter (gratuit, sans cookies) si son script
+   est présent dans index.html. Sinon, cette fonction ne fait rien.
+   On n'envoie jamais les noms des joueurs : seulement le nom de l'événement. */
+function suivreEvenement(nom) {
+  try {
+    if (window.goatcounter && typeof window.goatcounter.count === 'function') {
+      window.goatcounter.count({ path: nom, title: nom, event: true });
+    }
+  } catch { /* les statistiques ne doivent jamais gêner le jeu */ }
+}
+
 /* =========================================================
    4. Écrans communs
    ========================================================= */
@@ -528,6 +541,8 @@ function nouveauDuel() {
   });
 
   duel = { joueurs };
+  suivreEvenement('partie-lancee');
+  suivreEvenement('mode-duel');
   if (!scoreMatch || scoreMatch.noms.join('|') !== noms.join('|')) {
     scoreMatch = { noms, totaux: [0, 0], manches: 0 };
   }
@@ -629,6 +644,7 @@ function duelCalculerScores() {
   scoreMatch.totaux[0] += duel.scores[0];
   scoreMatch.totaux[1] += duel.scores[1];
   scoreMatch.manches++;
+  suivreEvenement('partie-terminee');
   duelResultats();
 }
 
@@ -710,6 +726,8 @@ function nouvelUndercover() {
     round: 0,
     votes: [],
   };
+  suivreEvenement('partie-lancee');
+  suivreEvenement('mode-undercover');
   ecranPasser(noms[0], () => ucMontrerTechnique(0, true));
 }
 
@@ -812,6 +830,7 @@ function ucBulletin(i) {
 
 function ucResultats() {
   const { noms, votes, undercover } = uc;
+  suivreEvenement('partie-terminee');
   const compte = noms.map(() => 0);
   votes.forEach((v) => compte[v]++);
   const max = Math.max(...compte);
