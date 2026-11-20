@@ -30,10 +30,24 @@ const DUREES_ROUND = [3, 5, 6];        // en minutes
 const NB_PROPOSITIONS_DEVINETTE = 8;   // nombre de missions proposées pour deviner
 const JOUEURS_MIN_UNDERCOVER = 3;
 const JOUEURS_MAX_UNDERCOVER = 10;
+const JOUEURS_MIN_QP = 3;
+const JOUEURS_MAX_QP = 16;
+const GAGE_PAR_DEFAUT = 'Paie le repas';
+
+// Nombre de joueurs possible selon le mode : [minimum, maximum]
+const BORNES_JOUEURS = {
+  'duel': [2, 2],
+  'undercover': [JOUEURS_MIN_UNDERCOVER, JOUEURS_MAX_UNDERCOVER],
+  'qui-paie': [JOUEURS_MIN_QP, JOUEURS_MAX_QP],
+};
+function nbJoueursMode(mode) {
+  const [min, max] = BORNES_JOUEURS[mode] || [2, 2];
+  return Math.min(max, Math.max(min, Number(reglages.nbJoueurs) || 4));
+}
 
 // Réglages choisis sur l'accueil (gardés en mémoire sur le téléphone)
 const reglages = Object.assign(
-  { mode: 'duel', nbJoueurs: 4, niveau: 'blanche', tenue: 'gi', nbMissions: 2, duree: 5, noms: [] },
+  { mode: 'duel', nbJoueurs: 4, niveau: 'blanche', tenue: 'gi', nbMissions: 2, duree: 5, noms: [], gage: GAGE_PAR_DEFAUT },
   lireReglages()
 );
 
@@ -88,6 +102,7 @@ const PICTO_DE_CATEGORIE = {
   'balayage': 'balayage', 'passage': 'passage', 'prise de dos': 'dos', 'projection': 'projection',
   'position': 'controle', 'échappement': 'echappement',
   'étranglement': 'soumission', 'clé de bras': 'soumission', 'clé de jambe': 'soumission',
+  'torsion': 'soumission',
 };
 const LIBELLE_PICTO = {
   balayage: 'Balayage', passage: 'Passage de garde', dos: 'Prise de dos', projection: 'Projection',
@@ -242,9 +257,22 @@ function boutonChoix(cle, valeur, contenu) {
   return `<button class="choix" data-reglage="${cle}" data-valeur="${valeur}" aria-pressed="${actif}">${contenu}</button>`;
 }
 
+// Grand bouton d'un mode de jeu, avec son pictogramme
+function boutonMode(valeur, titre, detail) {
+  const actif = reglages.mode === valeur;
+  return `<button class="choix mode-jeu" data-reglage="mode" data-valeur="${valeur}" aria-pressed="${actif}">
+    <span class="picto-mode">${dessinPicto('mode-' + valeur, titre)}</span>
+    <span class="texte"><strong>${titre}</strong><small>${detail}</small></span>
+  </button>`;
+}
+
 function ecranAccueil(garderScroll = false) {
-  const duel = reglages.mode === 'duel';
-  const n = duel ? 2 : reglages.nbJoueurs;
+  duelContexte = null;
+  const mode = reglages.mode;
+  const duel = mode === 'duel';
+  const [nMin, nMax] = BORNES_JOUEURS[mode];
+  const n = nbJoueursMode(mode);
+  if (!duel) reglages.nbJoueurs = n;
   const champsNoms = Array.from({ length: n }, (_, i) =>
     `<input class="champ" data-nom="${i}" maxlength="16" placeholder="Joueur ${i + 1}"
       value="${esc(reglages.noms[i] || '')}" autocomplete="off" enterkeyhint="done">`).join('');
@@ -259,9 +287,10 @@ function ecranAccueil(garderScroll = false) {
 
     <section class="bloc">
       <h2>Mode de jeu</h2>
-      <div class="grille-2">
-        ${boutonChoix('mode', 'duel', '⚔️ Duel<small>2 joueurs · missions secrètes</small>')}
-        ${boutonChoix('mode', 'undercover', '🕵️ Undercover<small>3 à 10 joueurs · trouve l\'intrus</small>')}
+      <div class="liste-modes">
+        ${boutonMode('duel', 'Duel', '2 joueurs · missions secrètes')}
+        ${boutonMode('undercover', 'Undercover', '3 à 10 joueurs · trouve l\'intrus')}
+        ${boutonMode('qui-paie', 'Qui paie ?', '3 à 16 joueurs · le dernier perdant a le gage')}
       </div>
     </section>
 
@@ -269,12 +298,19 @@ function ecranAccueil(garderScroll = false) {
       <h2>Joueurs</h2>
       ${duel ? '' : `
         <div class="compteur">
-          <button class="rond" id="moins" aria-label="Un joueur de moins" ${n <= JOUEURS_MIN_UNDERCOVER ? 'disabled' : ''}>−</button>
+          <button class="rond" id="moins" aria-label="Un joueur de moins" ${n <= nMin ? 'disabled' : ''}>−</button>
           <span>${n}</span>
-          <button class="rond" id="plus" aria-label="Un joueur de plus" ${n >= JOUEURS_MAX_UNDERCOVER ? 'disabled' : ''}>+</button>
+          <button class="rond" id="plus" aria-label="Un joueur de plus" ${n >= nMax ? 'disabled' : ''}>+</button>
         </div>`}
       <div class="noms">${champsNoms}</div>
     </section>
+
+    ${mode === 'qui-paie' ? `
+    <section class="bloc">
+      <h2>Le gage du perdant</h2>
+      <input class="champ champ-gage" id="gage" maxlength="60" placeholder="${GAGE_PAR_DEFAUT}"
+        value="${esc(reglages.gage ?? GAGE_PAR_DEFAUT)}" autocomplete="off" enterkeyhint="done">
+    </section>` : ''}
 
     <section class="bloc">
       <h2>Niveau</h2>
@@ -288,7 +324,7 @@ function ecranAccueil(garderScroll = false) {
       <div class="grille-2">${boutonChoix('tenue', 'gi', 'Gi')}${boutonChoix('tenue', 'no-gi', 'No-gi')}</div>
     </section>
 
-    ${duel ? `
+    ${mode !== 'undercover' ? `
     <section class="bloc">
       <h2>Missions par joueur</h2>
       <div class="grille-3">${[1, 2, 3].map((k) => boutonChoix('nbMissions', k, String(k))).join('')}</div>
@@ -297,6 +333,7 @@ function ecranAccueil(garderScroll = false) {
     <div class="actions">
       <button class="btn btn-primaire" id="commencer">Commencer</button>
       <button class="btn btn-lien" id="regles">Comment jouer ?</button>
+      ${estInstallee() ? '' : '<button class="btn btn-lien" id="installer-appli">📲 Installer l\'appli</button>'}
     </div>
   `, { boutonQuitter: false, garderScroll });
 
@@ -310,14 +347,19 @@ function ecranAccueil(garderScroll = false) {
     reglages.noms[Number(champ.dataset.nom)] = champ.value;
     sauverReglages();
   }));
-  clic('moins', () => { reglages.nbJoueurs--; sauverReglages(); ecranAccueil(true); });
-  clic('plus', () => { reglages.nbJoueurs++; sauverReglages(); ecranAccueil(true); });
+  clic('moins', () => { reglages.nbJoueurs = n - 1; sauverReglages(); ecranAccueil(true); });
+  clic('plus', () => { reglages.nbJoueurs = n + 1; sauverReglages(); ecranAccueil(true); });
+  const champGage = document.getElementById('gage');
+  if (champGage) champGage.addEventListener('input', () => { reglages.gage = champGage.value; sauverReglages(); });
   clic('regles', ecranRegles);
+  clic('installer-appli', () => ecranInstallation(false));
   clic('commencer', () => {
     debloquerSon();
     if (reglages.mode === 'duel') {
       scoreMatch = null; // nouvelle partie : on remet le score du match à zéro
       ecranSecurite(nouveauDuel);
+    } else if (reglages.mode === 'qui-paie') {
+      ecranSecurite(nouveauTournoi);
     } else {
       ecranSecurite(nouvelUndercover);
     }
@@ -501,10 +543,127 @@ function ecranRegles() {
         <li>Les rounds tournent : l'app indique qui roule avec qui.</li>
         <li>À la fin, chacun vote en secret. Si l'undercover n'est pas le plus voté (égalité comprise), il gagne.</li>
       </ul>
+
+      <h3>💸 Qui paie ? (3 à 16 joueurs)</h3>
+      <ul>
+        <li>Un tournoi à l'envers pour décider qui a le gage (par défaut : payer le repas).</li>
+        <li>Chaque match se joue comme un Duel : missions secrètes, chrono, points, devinette.</li>
+        <li>Le gagnant est sauvé et sort du tournoi. Le perdant passe au tour suivant.</li>
+        <li>Nombre impair ? Un joueur tiré au sort est exempt et passe directement au tour suivant.</li>
+        <li>Égalité de points : mort subite, le premier qui place une mission gagne.</li>
+        <li>Le dernier qui reste a le gage !</li>
+      </ul>
     </div>
     <div class="actions"><button class="btn btn-primaire" id="ok">Retour</button></div>
   `);
   clic('ok', () => ecranAccueil());
+}
+
+/* =========================================================
+   Guide d'installation sur l'écran d'accueil
+   ========================================================= */
+
+const CLE_GUIDE = 'submission-guide-vu';
+// Chrome (Android, ordinateur) nous donne une "invitation" quand l'installation est possible.
+// On la garde pour l'ouvrir quand on appuie sur « Installer l'appli ».
+let invitationInstall = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  invitationInstall = e;
+  // Si le guide est affiché, on le redessine pour montrer le bouton d'installation
+  const guide = document.getElementById('guide-installation');
+  if (guide) ecranInstallation(guide.dataset.premier === '1');
+});
+window.addEventListener('appinstalled', () => { invitationInstall = null; marquerGuideVu(); });
+
+// Vrai si l'appli est ouverte depuis l'écran d'accueil (plein écran)
+function estInstallee() {
+  return window.matchMedia('(display-mode: standalone)').matches
+    || window.matchMedia('(display-mode: fullscreen)').matches
+    || window.navigator.standalone === true;
+}
+
+function typeAppareil() {
+  const ua = navigator.userAgent;
+  const iPadRecent = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+  if (/iPad|iPhone|iPod/.test(ua) || iPadRecent) return 'ios';
+  if (/Android/i.test(ua)) return 'android';
+  return 'ordinateur';
+}
+
+function guideDejaVu() {
+  try { return localStorage.getItem(CLE_GUIDE) === '1'; } catch { return false; }
+}
+function marquerGuideVu() {
+  try { localStorage.setItem(CLE_GUIDE, '1'); } catch { /* pas grave */ }
+}
+
+const ETAPES_INSTALLATION = {
+  ios: [
+    { icone: 'partager', texte: 'Appuie sur le bouton <strong>Partager</strong> (en bas de Safari)' },
+    { icone: 'ajouter', texte: 'Choisis <strong>« Sur l\'écran d\'accueil »</strong> (fais défiler la liste si besoin)' },
+    { icone: 'valider', texte: 'Appuie sur <strong>« Ajouter »</strong> en haut à droite' },
+  ],
+  android: [
+    { icone: 'menu', texte: 'Appuie sur le menu <strong>⋮</strong> en haut à droite de Chrome' },
+    { icone: 'installer', texte: 'Choisis <strong>« Installer l\'application »</strong> (ou « Ajouter à l\'écran d\'accueil »)' },
+    { icone: 'valider', texte: 'Confirme avec <strong>« Installer »</strong>' },
+  ],
+  ordinateur: [
+    { icone: 'ordinateur', texte: 'Dans Chrome ou Edge, clique sur l\'icône d\'installation à droite de la barre d\'adresse' },
+    { icone: 'installer', texte: 'Le plus pratique : ouvre cette page <strong>sur ton téléphone</strong> pour l\'installer' },
+  ],
+};
+
+function listeEtapes(etapes) {
+  return `<ol class="etapes-install">${etapes.map((e, i) => `
+    <li><span class="icone-install">${iconeInstall(e.icone)}</span>
+      <span><span class="num-install">Étape ${i + 1}</span>${e.texte}</span></li>`).join('')}</ol>`;
+}
+
+function ecranInstallation(premierLancement = false) {
+  const appareil = typeAppareil();
+  const installable = appareil !== 'ios' && invitationInstall;
+  const autreNavigateurIos = appareil === 'ios' && /CriOS|FxiOS|EdgiOS/.test(navigator.userAgent);
+
+  let contenu;
+  if (installable) {
+    contenu = `<p class="discret centre-txt">Un seul bouton : ton téléphone te demande de confirmer, et c'est fait.</p>`;
+  } else {
+    contenu = `${listeEtapes(ETAPES_INSTALLATION[appareil])}
+      ${autreNavigateurIos ? '<p class="discret centre-txt">Astuce : sur iPhone, c\'est plus simple depuis <strong>Safari</strong>.</p>' : ''}`;
+  }
+
+  afficher(`
+    <div id="guide-installation" data-premier="${premierLancement ? '1' : '0'}">
+      <div class="entete-install">
+        <img src="icons/icon.svg" alt="">
+        <h2 class="titre">Installe SubMission</h2>
+        <p class="discret centre-txt">Sur ton écran d'accueil, comme une vraie appli :
+          plein écran, et ça marche même sans réseau au club.</p>
+      </div>
+      ${contenu}
+    </div>
+    <div class="actions">
+      ${installable ? '<button class="btn btn-primaire" id="installer">Installer l\'appli</button>' : ''}
+      <button class="btn" id="plus-tard">${premierLancement ? 'Plus tard' : 'Retour'}</button>
+    </div>
+  `, { boutonQuitter: false });
+
+  clic('installer', async () => {
+    const invitation = invitationInstall;
+    invitationInstall = null; // une invitation ne sert qu'une fois
+    invitation.prompt();
+    const { outcome } = await invitation.userChoice;
+    if (outcome === 'accepted') {
+      marquerGuideVu();
+      ecranAccueil();
+    } else {
+      ecranInstallation(premierLancement); // on montre les étapes à la main
+    }
+  });
+  clic('plus-tard', () => { marquerGuideVu(); ecranAccueil(); });
 }
 
 /* =========================================================
@@ -513,9 +672,12 @@ function ecranRegles() {
 
 let duel = null;        // la manche en cours
 let scoreMatch = null;  // le score cumulé sur plusieurs revanches
+// Quand un duel fait partie du tournoi « Qui paie ? », ce contexte donne les deux joueurs,
+// le titre du match et ce qu'il faut faire à la fin (surFin). Sinon, il vaut null.
+let duelContexte = null;
 
 function nouveauDuel() {
-  const noms = nomsJoueurs(2);
+  const noms = duelContexte ? duelContexte.noms : nomsJoueurs(2);
   const k = reglages.nbMissions;
   const dispo = melanger(missionsDisponibles());
   if (dispo.length < 2 * k + 2) {
@@ -541,10 +703,12 @@ function nouveauDuel() {
   });
 
   duel = { joueurs };
-  suivreEvenement('partie-lancee');
-  suivreEvenement('mode-duel');
-  if (!scoreMatch || scoreMatch.noms.join('|') !== noms.join('|')) {
-    scoreMatch = { noms, totaux: [0, 0], manches: 0 };
+  if (!duelContexte) {
+    suivreEvenement('partie-lancee');
+    suivreEvenement('mode-duel');
+    if (!scoreMatch || scoreMatch.noms.join('|') !== noms.join('|')) {
+      scoreMatch = { noms, totaux: [0, 0], manches: 0 };
+    }
   }
   ecranPasser(joueurs[0].nom, () => duelMontrerMissions(0));
 }
@@ -567,7 +731,7 @@ function duelMontrerMissions(i) {
 function duelRound() {
   const [a, b] = duel.joueurs;
   ecranChrono({
-    etape: 'Round',
+    etape: duelContexte ? duelContexte.etape : 'Round',
     titre: `${esc(a.nom)} <span class="accent-txt">vs</span> ${esc(b.nom)}`,
     actionsFin: [{ libelle: 'Valider les missions', action: () => ecranPasser(a.nom, () => duelCocher(0)) }],
   });
@@ -641,10 +805,12 @@ function duelCalculerScores() {
 
   const volsA = vols(A, B), volsB = vols(B, A);
   duel.scores = [base(A) + volsA - volsB, base(B) + volsB - volsA];
-  scoreMatch.totaux[0] += duel.scores[0];
-  scoreMatch.totaux[1] += duel.scores[1];
-  scoreMatch.manches++;
-  suivreEvenement('partie-terminee');
+  if (!duelContexte) {
+    scoreMatch.totaux[0] += duel.scores[0];
+    scoreMatch.totaux[1] += duel.scores[1];
+    scoreMatch.manches++;
+    suivreEvenement('partie-terminee');
+  }
   duelResultats();
 }
 
@@ -681,8 +847,31 @@ function duelResultats() {
     </div>`;
   };
 
+  const egalite = scores[0] === scores[1];
+  const gagnant = scores[0] > scores[1] ? 0 : 1;
+
+  // Match du tournoi « Qui paie ? » : pas de revanche, on continue le tournoi
+  if (duelContexte) {
+    const ctx = duelContexte;
+    const banniereTournoi = egalite
+      ? '⚡ Égalité : mort subite !'
+      : `🛟 ${esc(joueurs[gagnant].nom)} échappe au gage !`;
+    afficher(`
+      <p class="etape">${esc(ctx.etape)}</p>
+      <div class="banniere">${banniereTournoi}</div>
+      ${egalite ? '' : `<p class="match">${esc(joueurs[1 - gagnant].nom)} reste en jeu pour le tour suivant.</p>`}
+      ${carteJoueur(0)}
+      ${carteJoueur(1)}
+      <div class="actions">
+        <button class="btn btn-primaire" id="continuer">${egalite ? 'Lancer la mort subite' : 'Continuer le tournoi'}</button>
+      </div>
+    `);
+    clic('continuer', () => (egalite ? duelMortSubite() : ctx.surFin(gagnant, false)));
+    return;
+  }
+
   let banniere = '🤝 Égalité !';
-  if (scores[0] !== scores[1]) banniere = `🏆 ${esc(joueurs[scores[0] > scores[1] ? 0 : 1].nom)} gagne la manche`;
+  if (!egalite) banniere = `🏆 ${esc(joueurs[gagnant].nom)} gagne la manche`;
 
   afficher(`
     <p class="etape">Résultats</p>
@@ -700,6 +889,28 @@ function duelResultats() {
   clic('accueil', () => ecranAccueil());
 }
 
+// Égalité dans le tournoi : le premier qui place une de ses missions gagne
+function duelMortSubite() {
+  const [a, b] = duel.joueurs;
+  afficher(`
+    <p class="etape">Mort subite</p>
+    <h2 class="titre">Le premier qui place une mission gagne !</h2>
+    <div class="carte mort-subite">
+      <p>Repartez au combat avec les mêmes missions.</p>
+      <p>Dès qu'un joueur place une de ses missions (position et grip établis, sans forcer),
+        <strong>touchez son nom</strong>.</p>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primaire" data-gagnant="0">${esc(a.nom)} a placé une mission</button>
+      <button class="btn btn-primaire" data-gagnant="1">${esc(b.nom)} a placé une mission</button>
+    </div>
+  `);
+  app.querySelectorAll('[data-gagnant]').forEach((bouton) => bouton.addEventListener('click', () => {
+    const g = Number(bouton.dataset.gagnant);
+    if (confirm(`Confirmer : ${duel.joueurs[g].nom} a placé sa mission en premier ?`)) duelContexte.surFin(g, true);
+  }));
+}
+
 /* =========================================================
    6. Mode Undercover
    ========================================================= */
@@ -707,7 +918,7 @@ function duelResultats() {
 let uc = null;
 
 function nouvelUndercover() {
-  const noms = nomsJoueurs(reglages.nbJoueurs);
+  const noms = nomsJoueurs(nbJoueursMode('undercover'));
   const dispo = missionsDisponibles();
   if (dispo.length < 2) {
     alert('Pas assez de missions pour ces réglages. Ajoute-en dans missions.json.');
@@ -871,7 +1082,166 @@ function ucResultats() {
 }
 
 /* =========================================================
-   7. Démarrage
+   7. Mode « Qui paie ? » (tournoi à gage)
+
+   Tournoi inversé : le GAGNANT de chaque match est sauvé et sort.
+   Les perdants se rencontrent tour après tour. Le dernier qui reste a le gage.
+   Si le nombre de joueurs encore en jeu est impair, un joueur tiré au sort
+   est exempt : il passe directement au tour suivant.
+   ========================================================= */
+
+let qp = null;
+
+function nouveauTournoi() {
+  const noms = nomsJoueurs(nbJoueursMode('qui-paie'));
+  const k = reglages.nbMissions;
+  if (missionsDisponibles().length < 2 * k + 2) {
+    alert('Pas assez de missions pour ces réglages. Ajoute-en dans missions.json.');
+    return ecranAccueil();
+  }
+  qp = {
+    noms,
+    gage: (reglages.gage || '').trim() || GAGE_PAR_DEFAUT,
+    enJeu: noms.map((_, i) => i), // ceux qui risquent encore le gage
+    sauves: [],                    // { joueur, tour } dans l'ordre où ils se sont sauvés
+    tours: [],                     // { numero, matchs: [{ a, b, gagnant, mortSubite }], exempt }
+  };
+  suivreEvenement('partie-lancee');
+  suivreEvenement('mode-qui-paie');
+  qpNouveauTour();
+}
+
+const qpTour = () => qp.tours[qp.tours.length - 1];
+const qpMatchAJouer = () => qpTour().matchs.find((m) => m.gagnant === null);
+
+function qpNouveauTour() {
+  const ordre = melanger(qp.enJeu);
+  // Nombre impair : le dernier du tirage au sort est exempt
+  const exempt = ordre.length % 2 === 1 ? ordre.pop() : null;
+  const matchs = [];
+  for (let i = 0; i < ordre.length; i += 2) matchs.push({ a: ordre[i], b: ordre[i + 1], gagnant: null, mortSubite: false });
+  qp.tours.push({ numero: qp.tours.length + 1, matchs, exempt });
+  qpTableau();
+}
+
+function qpJouerMatch() {
+  const tour = qpTour();
+  const match = qpMatchAJouer();
+  const numero = tour.matchs.indexOf(match) + 1;
+  duelContexte = {
+    noms: [qp.noms[match.a], qp.noms[match.b]],
+    etape: `Tour ${tour.numero} · Match ${numero}/${tour.matchs.length}`,
+    surFin: (gagnant, mortSubite) => {
+      match.gagnant = gagnant === 0 ? match.a : match.b;
+      match.mortSubite = mortSubite;
+      qp.sauves.push({ joueur: match.gagnant, tour: tour.numero });
+      qp.enJeu = qp.enJeu.filter((i) => i !== match.gagnant);
+      duelContexte = null;
+      qpTableau();
+    },
+  };
+  nouveauDuel();
+}
+
+// Le tableau du tournoi : qui est sauvé, qui reste en jeu, les matchs du tour
+function qpTableau() {
+  const tour = qpTour();
+  const match = qpMatchAJouer();
+  const nom = (i) => esc(qp.noms[i]);
+
+  const ligneMatch = (m) => {
+    if (m.gagnant === null) {
+      const actuel = m === match;
+      return `<li class="match-qp ${actuel ? 'actuel' : ''}">
+        <span>${nom(m.a)} <span class="accent-txt">vs</span> ${nom(m.b)}</span>
+        <span class="statut">${actuel ? 'À jouer' : 'Ensuite'}</span></li>`;
+    }
+    const perdant = m.gagnant === m.a ? m.b : m.a;
+    return `<li class="match-qp joue">
+      <span><strong>${nom(m.gagnant)}</strong> échappe au gage${m.mortSubite ? ' (mort subite)' : ''}
+        <span class="detail">${nom(perdant)} reste en jeu</span></span>
+      <span class="statut sauve">🛟</span></li>`;
+  };
+  const carteTour = (t) => `<div class="carte tour-qp">
+    <p class="sous-titre">Tour ${t.numero}</p>
+    <ul class="liste-qp">
+      ${t.matchs.map(ligneMatch).join('')}
+      ${t.exempt !== null ? `<li class="match-qp exempt"><span>🎲 <strong>${nom(t.exempt)}</strong> est exempt
+        <span class="detail">Tiré au sort : passe directement au tour suivant</span></span></li>` : ''}
+    </ul></div>`;
+
+  const fini = qp.enJeu.length === 1;
+  let bouton;
+  if (match) bouton = `Jouer : ${nom(match.a)} vs ${nom(match.b)}`;
+  else if (fini) bouton = 'Découvrir qui paie… 😬';
+  else bouton = `Lancer le tour ${tour.numero + 1}`;
+
+  afficher(`
+    <p class="etape">Qui paie ?</p>
+    <h2 class="titre">Tour ${tour.numero}</h2>
+    <p class="gage-rappel">Gage : <strong>${esc(qp.gage)}</strong></p>
+    <div class="grille-2 bilan-qp">
+      <div class="carte colonne-qp sauves">
+        <p class="sous-titre">Sauvés · ${qp.sauves.length}</p>
+        ${qp.sauves.length ? qp.sauves.map((s) => `<span class="pastille bleue">${nom(s.joueur)}</span>`).join('') : '<p class="discret">Personne… pour l\'instant</p>'}
+      </div>
+      <div class="carte colonne-qp en-jeu">
+        <p class="sous-titre">Encore en jeu · ${qp.enJeu.length}</p>
+        ${qp.enJeu.map((i) => `<span class="pastille violette">${nom(i)}</span>`).join('')}
+      </div>
+    </div>
+    ${carteTour(tour)}
+    ${qp.tours.length > 1 ? `<p class="sous-titre centre-txt">Tours précédents</p>
+      ${qp.tours.slice(0, -1).reverse().map(carteTour).join('')}` : ''}
+    <div class="actions">
+      <button class="btn btn-primaire" id="jouer">${bouton}</button>
+    </div>
+  `);
+  clic('jouer', () => {
+    if (match) qpJouerMatch();
+    else if (fini) qpFinal();
+    else qpNouveauTour();
+  });
+}
+
+function qpFinal() {
+  const perdant = qp.enJeu[0];
+  suivreEvenement('partie-terminee');
+  const pluie = Array.from({ length: 18 }, (_, i) =>
+    `<span style="left:${(i * 37) % 100}%;animation-delay:${(i % 6) * 0.45}s;animation-duration:${3 + (i % 4) * 0.6}s">${
+      ['💸', '🍕', '🧾', '🍔', '🍟', '💶'][i % 6]}</span>`).join('');
+
+  afficher(`
+    <div class="pluie" aria-hidden="true">${pluie}</div>
+    <p class="etape">Fin du tournoi</p>
+    <div class="final-qp">
+      <div class="final-picto">${dessinPicto('mode-qui-paie', 'Qui paie ?')}</div>
+      <p class="petit">Et c'est…</p>
+      <h2 class="nom-perdant">${esc(qp.noms[perdant])}</h2>
+      <p class="qui-paie-txt">qui s'y colle ! 😅</p>
+      <div class="gage-carte">
+        <span class="sous-titre">Le gage</span>
+        <strong>${esc(qp.gage)}</strong>
+      </div>
+    </div>
+    <div class="carte">
+      <p class="sous-titre">Ordre de sortie</p>
+      <ol class="classement-qp">
+        ${qp.sauves.map((s) => `<li><span>${esc(qp.noms[s.joueur])}</span><span class="detail">sorti au tour ${s.tour}</span></li>`).join('')}
+        <li class="perdant"><span>${esc(qp.noms[perdant])}</span><span class="detail">💸 a le gage</span></li>
+      </ol>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primaire" id="rejouer">Nouveau tournoi</button>
+      <button class="btn" id="accueil">Accueil</button>
+    </div>
+  `, { boutonQuitter: false });
+  clic('rejouer', () => ecranSecurite(nouveauTournoi));
+  clic('accueil', () => ecranAccueil());
+}
+
+/* =========================================================
+   8. Démarrage
    ========================================================= */
 
 async function demarrer() {
@@ -897,8 +1267,11 @@ async function demarrer() {
   if (!NIVEAUX.includes(reglages.niveau)) reglages.niveau = 'blanche';
   if (!['gi', 'no-gi'].includes(reglages.tenue)) reglages.tenue = 'gi';
   if (!DUREES_ROUND.includes(reglages.duree)) reglages.duree = 5;
-  reglages.nbJoueurs = Math.min(JOUEURS_MAX_UNDERCOVER, Math.max(JOUEURS_MIN_UNDERCOVER, Number(reglages.nbJoueurs) || 4));
-  ecranAccueil();
+  if (!BORNES_JOUEURS[reglages.mode]) reglages.mode = 'duel';
+  reglages.nbJoueurs = Math.min(JOUEURS_MAX_QP, Math.max(JOUEURS_MIN_UNDERCOVER, Number(reglages.nbJoueurs) || 4));
+  // Premier lancement dans le navigateur : on propose d'installer l'appli
+  if (!estInstallee() && !guideDejaVu()) ecranInstallation(true);
+  else ecranAccueil();
 }
 
 if ('serviceWorker' in navigator) {
