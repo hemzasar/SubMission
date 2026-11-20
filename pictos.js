@@ -165,7 +165,7 @@ const DESSINS = {
   })).join('') + `<text x="48" y="20" text-anchor="middle" font-family="system-ui, sans-serif"
     font-size="20" font-weight="900" fill="${PICTO.contour}">?</text>`,
 
-  // Qui paie ? : Bleu est sauvé et saute de joie, Violet tient l'addition
+  // Tournoi inversé : Bleu est sauvé et saute de joie, Violet tient l'addition
   'mode-qui-paie': () => `
     ${personnage({ ceinture: 'bleue', tete: [22, 24], cou: [22, 32], hanche: [24, 54],
       jambes: [[[24, 54], [18, 64], [16, 72]], [[24, 54], [30, 64], [32, 72]]],
