@@ -290,7 +290,7 @@ function ecranAccueil(garderScroll = false) {
       <div class="liste-modes">
         ${boutonMode('duel', 'Duel', '2 joueurs · missions secrètes')}
         ${boutonMode('undercover', 'Undercover', '3 à 10 joueurs · trouve l\'intrus')}
-        ${boutonMode('qui-paie', 'Qui paie ?', '3 à 16 joueurs · le dernier perdant a le gage')}
+        ${boutonMode('qui-paie', 'Tournoi inversé', 'Le dernier perdant a le gage · 3 à 16 joueurs')}
       </div>
     </section>
 
@@ -544,7 +544,7 @@ function ecranRegles() {
         <li>À la fin, chacun vote en secret. Si l'undercover n'est pas le plus voté (égalité comprise), il gagne.</li>
       </ul>
 
-      <h3>💸 Qui paie ? (3 à 16 joueurs)</h3>
+      <h3>💸 Tournoi inversé (3 à 16 joueurs)</h3>
       <ul>
         <li>Un tournoi à l'envers pour décider qui a le gage (par défaut : payer le repas).</li>
         <li>Chaque match se joue comme un Duel : missions secrètes, chrono, points, devinette.</li>
@@ -672,7 +672,7 @@ function ecranInstallation(premierLancement = false) {
 
 let duel = null;        // la manche en cours
 let scoreMatch = null;  // le score cumulé sur plusieurs revanches
-// Quand un duel fait partie du tournoi « Qui paie ? », ce contexte donne les deux joueurs,
+// Quand un duel fait partie du « Tournoi inversé », ce contexte donne les deux joueurs,
 // le titre du match et ce qu'il faut faire à la fin (surFin). Sinon, il vaut null.
 let duelContexte = null;
 
@@ -850,7 +850,7 @@ function duelResultats() {
   const egalite = scores[0] === scores[1];
   const gagnant = scores[0] > scores[1] ? 0 : 1;
 
-  // Match du tournoi « Qui paie ? » : pas de revanche, on continue le tournoi
+  // Match du « Tournoi inversé » : pas de revanche, on continue le tournoi
   if (duelContexte) {
     const ctx = duelContexte;
     const banniereTournoi = egalite
@@ -1082,7 +1082,7 @@ function ucResultats() {
 }
 
 /* =========================================================
-   7. Mode « Qui paie ? » (tournoi à gage)
+   7. Mode « Tournoi inversé » (tournoi à gage)
 
    Tournoi inversé : le GAGNANT de chaque match est sauvé et sort.
    Les perdants se rencontrent tour après tour. Le dernier qui reste a le gage.
@@ -1173,11 +1173,11 @@ function qpTableau() {
   const fini = qp.enJeu.length === 1;
   let bouton;
   if (match) bouton = `Jouer : ${nom(match.a)} vs ${nom(match.b)}`;
-  else if (fini) bouton = 'Découvrir qui paie… 😬';
+  else if (fini) bouton = 'Découvrir qui a le gage… 😬';
   else bouton = `Lancer le tour ${tour.numero + 1}`;
 
   afficher(`
-    <p class="etape">Qui paie ?</p>
+    <p class="etape">Tournoi inversé</p>
     <h2 class="titre">Tour ${tour.numero}</h2>
     <p class="gage-rappel">Gage : <strong>${esc(qp.gage)}</strong></p>
     <div class="grille-2 bilan-qp">
@@ -1215,7 +1215,7 @@ function qpFinal() {
     <div class="pluie" aria-hidden="true">${pluie}</div>
     <p class="etape">Fin du tournoi</p>
     <div class="final-qp">
-      <div class="final-picto">${dessinPicto('mode-qui-paie', 'Qui paie ?')}</div>
+      <div class="final-picto">${dessinPicto('mode-qui-paie', 'Tournoi inversé')}</div>
       <p class="petit">Et c'est…</p>
       <h2 class="nom-perdant">${esc(qp.noms[perdant])}</h2>
       <p class="qui-paie-txt">qui s'y colle ! 😅</p>

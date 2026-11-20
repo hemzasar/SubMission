@@ -20,7 +20,7 @@ Pas de serveur, pas de compte, et ça marche hors ligne une fois installé.
 
 - **Duel** (2 joueurs) : missions secrètes, chrono, points, devinette.
 - **Undercover** (3 à 10 joueurs) : tout le monde a la même technique sauf un intrus, à démasquer.
-- **Qui paie ?** (3 à 16 joueurs) : tournoi à l'envers. Chaque match se joue comme un Duel,
+- **Tournoi inversé** (3 à 16 joueurs) : tournoi à l'envers. Chaque match se joue comme un Duel,
   le gagnant est sauvé, les perdants continuent. Le dernier a le gage (par défaut « Paie le repas »).
 
 Au premier lancement dans le navigateur, un guide explique comment installer l'appli sur l'écran d'accueil.
