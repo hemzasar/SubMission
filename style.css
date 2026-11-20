@@ -308,3 +308,87 @@ button { touch-action: manipulation; user-select: none; -webkit-user-select: non
 .etapes li { padding: 8px 10px; font-size: 1rem; line-height: 1.3; }
 /* Le bouton suit le contenu au lieu de rester collé en bas (rien n'est caché) */
 .actions.apres-contenu { position: static; background: none; padding-top: 14px; }
+
+/* ===== Guide d'installation ===== */
+.entete-install { display: flex; flex-direction: column; align-items: center; margin-top: 8px; }
+.entete-install img { width: 84px; height: 84px; border-radius: 20px; }
+.entete-install .titre { margin-top: 12px; }
+.etapes-install { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 10px; }
+.etapes-install li {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--surface); border: 2px solid var(--bord); border-radius: var(--rayon);
+  padding: 12px 14px; font-size: 1.1rem; line-height: 1.35;
+}
+.icone-install { flex: none; width: 56px; height: 56px; }
+.icone-install svg { width: 100%; height: 100%; display: block; }
+.num-install {
+  display: block; font-size: 0.8rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--marron);
+}
+
+/* ===== Modes de jeu sur l'accueil ===== */
+.liste-modes { display: grid; gap: 10px; }
+.choix.mode-jeu { flex-direction: row; justify-content: flex-start; gap: 14px; text-align: left; padding: 10px 14px 10px 10px; }
+.choix.mode-jeu .texte { display: flex; flex-direction: column; gap: 2px; }
+.choix.mode-jeu strong { font-size: 1.25rem; }
+.picto-mode { flex: none; width: 64px; height: 64px; border-radius: 14px; overflow: hidden; }
+.picto-mode svg { display: block; width: 100%; height: 100%; }
+.champ-gage { font-weight: 700; }
+
+/* ===== Tournoi « Qui paie ? » ===== */
+.gage-rappel {
+  text-align: center; margin: -4px auto 14px; padding: 8px 14px; border-radius: 999px;
+  background: var(--marron-clair); color: var(--marron); border: 2px solid var(--marron);
+}
+.bilan-qp { margin-bottom: 12px; align-items: start; }
+.colonne-qp { padding: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; }
+.colonne-qp .sous-titre { width: 100%; margin: 0 0 4px; }
+.colonne-qp .discret { margin: 0; font-size: 0.9rem; }
+.colonne-qp.sauves { border-color: var(--bleu); }
+.colonne-qp.en-jeu { border-color: var(--violet); }
+.pastille {
+  display: inline-block; padding: 4px 10px; border-radius: 999px;
+  font-weight: 800; font-size: 0.95rem; color: #fff;
+}
+.pastille.bleue { background: var(--bleu); }
+.pastille.violette { background: var(--violet); }
+.tour-qp { margin-bottom: 12px; }
+.tour-qp .sous-titre { margin-top: 0; }
+.liste-qp { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.match-qp {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 12px; border-radius: 12px; background: var(--fond); font-size: 1.1rem; font-weight: 700;
+}
+.match-qp .detail { display: block; font-weight: 500; font-size: 0.9rem; color: var(--discret); }
+.match-qp.actuel { border: 3px solid var(--bleu); background: var(--bleu-clair); }
+.match-qp .statut { flex: none; font-size: 0.85rem; font-weight: 800; color: var(--bleu-fonce); }
+.match-qp .statut.sauve { font-size: 1.4rem; }
+.match-qp.exempt { background: var(--marron-clair); }
+.mort-subite { font-size: 1.15rem; border: 3px solid var(--violet); }
+.mort-subite p { margin: 0 0 10px; }
+.mort-subite p:last-child { margin: 0; }
+.actions [data-gagnant] { font-size: 1.2rem; }
+
+/* Écran final */
+.final-qp { display: flex; flex-direction: column; align-items: center; text-align: center; margin: 4px 0 14px; position: relative; }
+.final-picto { width: 140px; height: 140px; border-radius: 28px; overflow: hidden; animation: secoue 1.2s ease-in-out infinite; }
+.final-picto svg { display: block; width: 100%; height: 100%; }
+@keyframes secoue { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+.nom-perdant { margin: 0; font-size: clamp(2.6rem, 14vw, 3.6rem); font-weight: 900; color: var(--violet); line-height: 1.05; word-break: break-word; }
+.qui-paie-txt { margin: 4px 0 12px; font-size: 1.3rem; font-weight: 800; }
+.gage-carte {
+  display: flex; flex-direction: column; gap: 2px; padding: 14px 22px; border-radius: var(--rayon);
+  background: var(--violet); color: #fff; box-shadow: 0 6px 0 #4c1d95; font-size: 1.5rem;
+}
+.gage-carte .sous-titre { color: #e9ddff; margin: 0; }
+.classement-qp { margin: 6px 0 0; padding-left: 26px; display: grid; gap: 6px; font-weight: 700; }
+.classement-qp li span.detail { display: block; font-weight: 500; font-size: 0.9rem; color: var(--discret); }
+.classement-qp li.perdant { color: var(--violet); }
+.pluie { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+.pluie span { position: absolute; top: -40px; font-size: 1.8rem; animation: tombe linear infinite; }
+@keyframes tombe { to { transform: translateY(110vh) rotate(260deg); } }
+.final-qp, .carte, .actions, .etape { position: relative; z-index: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .pluie { display: none; }
+  .final-picto { animation: none; }
+}

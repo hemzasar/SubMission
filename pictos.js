@@ -144,6 +144,40 @@ const DESSINS = {
       jambes: [[[52, 66], [66, 70], [84, 72]], [[52, 66], [62, 60], [70, 62]]],
       bras: [[[30, 60], [36, 48], [46, 40]], [[30, 62], [42, 54], [52, 48]]] })}
     ${fleche('M44 85 H12', [[18, 80], [12, 85], [18, 90]])}`,
+
+  /* ----- Pictogrammes des modes de jeu ----- */
+
+  // Duel : face à face, chacun tient l'autre
+  'mode-duel': () => `
+    ${personnage({ ceinture: 'bleue', tete: [26, 22], cou: [28, 30], hanche: [30, 52],
+      jambes: [[[30, 52], [24, 62], [20, 72]], [[30, 52], [38, 62], [40, 72]]],
+      bras: [[[30, 32], [40, 38], [48, 36]], [[30, 34], [38, 44], [46, 46]]] })}
+    ${personnage({ ceinture: 'violette', tete: [70, 22], cou: [68, 30], hanche: [66, 52],
+      jambes: [[[66, 52], [72, 62], [76, 72]], [[66, 52], [58, 62], [56, 72]]],
+      bras: [[[66, 32], [56, 38], [50, 36]], [[66, 34], [58, 44], [52, 46]]] })}`,
+
+  // Undercover : trois joueurs, un seul est différent… mais lequel ?
+  'mode-undercover': () => [18, 48, 78].map((x, i) => personnage({
+    ceinture: i === 1 ? 'violette' : 'bleue',
+    tete: [x, 32], cou: [x, 40], hanche: [x, 58],
+    jambes: [[[x, 58], [x - 5, 66], [x - 7, 72]], [[x, 58], [x + 5, 66], [x + 7, 72]]],
+    bras: [[[x, 42], [x - 6, 50], [x - 8, 58]], [[x, 42], [x + 6, 50], [x + 8, 58]]],
+  })).join('') + `<text x="48" y="20" text-anchor="middle" font-family="system-ui, sans-serif"
+    font-size="20" font-weight="900" fill="${PICTO.contour}">?</text>`,
+
+  // Qui paie ? : Bleu est sauvé et saute de joie, Violet tient l'addition
+  'mode-qui-paie': () => `
+    ${personnage({ ceinture: 'bleue', tete: [22, 24], cou: [22, 32], hanche: [24, 54],
+      jambes: [[[24, 54], [18, 64], [16, 72]], [[24, 54], [30, 64], [32, 72]]],
+      bras: [[[22, 34], [14, 26], [10, 16]], [[24, 34], [32, 26], [36, 16]]] })}
+    ${personnage({ ceinture: 'violette', tete: [62, 26], cou: [62, 34], hanche: [62, 56],
+      jambes: [[[62, 56], [56, 66], [54, 72]], [[62, 56], [68, 66], [70, 72]]],
+      bras: [[[62, 36], [54, 46], [52, 54]], [[62, 36], [72, 44], [76, 40]]] })}
+    <path d="M74 24 H92 V54 L89 51 L86 54 L83 51 L80 54 L77 51 L74 54 Z" fill="#ffffff"
+      stroke="${PICTO.contour}" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M78 31 H88 M78 37 H88" stroke="${PICTO.contour}" stroke-width="2.4" stroke-linecap="round"/>
+    <text x="83" y="49" text-anchor="middle" font-family="system-ui, sans-serif" font-size="11"
+      font-weight="900" fill="${PICTO.violette}">€</text>`,
 };
 
 // Le pictogramme complet (fond + tapis + dessin)
@@ -152,5 +186,37 @@ function dessinPicto(cle, titre) {
     <rect width="96" height="96" fill="${PICTO.fond}"/>
     <rect y="74" width="96" height="22" fill="${PICTO.tapis}"/>
     ${DESSINS[cle]()}
+  </svg>`;
+}
+
+/* ---------- Icônes du guide d'installation (grille 48 x 48) ---------- */
+const ICONES_INSTALL = {
+  // Bouton Partager de Safari : un carré ouvert avec une flèche vers le haut
+  partager: `<path d="M18 20 H14 V38 H34 V20 H30" stroke="#141414"/>
+    <path d="M24 30 V9" stroke="#1d4ed8"/><path d="M18 15 L24 9 L30 15" stroke="#1d4ed8"/>`,
+  // « Sur l'écran d'accueil » : un carré avec un +
+  ajouter: `<rect x="12" y="12" width="24" height="24" rx="6" stroke="#141414"/>
+    <path d="M24 18 V30 M18 24 H30" stroke="#1d4ed8"/>`,
+  // Valider : une coche dans un rond bleu
+  valider: `<circle cx="24" cy="24" r="13" fill="#1d4ed8" stroke="#141414"/>
+    <path d="M18 24 L22.5 28.5 L30 20" stroke="#ffffff"/>`,
+  // Menu de Chrome : trois points verticaux
+  menu: `<circle cx="24" cy="13" r="3.4" fill="#141414" stroke="none"/>
+    <circle cx="24" cy="24" r="3.4" fill="#141414" stroke="none"/>
+    <circle cx="24" cy="35" r="3.4" fill="#141414" stroke="none"/>`,
+  // Installer : un téléphone avec une flèche qui descend
+  installer: `<rect x="15" y="7" width="18" height="34" rx="4" stroke="#141414"/>
+    <path d="M24 14 V27" stroke="#1d4ed8"/><path d="M19.5 22.5 L24 27 L28.5 22.5" stroke="#1d4ed8"/>
+    <path d="M21 35 H27" stroke="#141414"/>`,
+  // Ordinateur : un écran avec une flèche d'installation
+  ordinateur: `<rect x="8" y="10" width="32" height="21" rx="3" stroke="#141414"/>
+    <path d="M18 38 H30 M24 31 V38" stroke="#141414"/>
+    <path d="M24 14 V25" stroke="#1d4ed8"/><path d="M20 21 L24 25 L28 21" stroke="#1d4ed8"/>`,
+};
+
+function iconeInstall(nom) {
+  return `<svg viewBox="0 0 48 48" aria-hidden="true">
+    <rect width="48" height="48" rx="12" fill="${PICTO.fond}"/>
+    <g fill="none" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round">${ICONES_INSTALL[nom]}</g>
   </svg>`;
 }
